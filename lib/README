@@ -1,0 +1,48 @@
+
+This directory is intended for project specific (private) libraries.
+PlatformIO will compile them to static libraries and link into executable file.
+
+The source code of each library should be placed in a an own separate directory
+("lib/your_library_name/[here are source files]").
+
+For example, see a structure of the following two libraries `Foo` and `Bar`:
+
+|--lib
+|  |
+|  |--Bar
+|  |  |--docs
+|  |  |--examples
+|  |  |--src
+|  |     |- Bar.c
+|  |     |- Bar.h
+|  |  |- library.json (optional, custom build options, etc) https://docs.platformio.org/page/librarymanager/config.html
+|  |
+|  |--Foo
+|  |  |- Foo.c
+|  |  |- Foo.h
+|  |
+|  |- README --> THIS FILE
+|
+|- platformio.ini
+|--src
+   |- main.c
+
+and target configuration in "platformio.ini":
+
+[env:myenv]
+platform = platform_name
+board = board_name
+framework = framework_name
+
+then from "src/main.c|.cpp" you should add:
+
+#include <Foo.h>
+#include <Bar.h>
+
+All libraries inside 'lib' folder will be built automatically.
+In case you don't want to use a particular library that is in the 'lib' folder
+(for example, there's a test library or a library incompatible with your project),
+use the `lib_ignore` option in "platformio.ini".
+
+For more info about PlatformIO Library Dependency Finder (LDF) see:
+https://docs.platformio.org/page/librarymanager/ldf.html
