@@ -29,7 +29,7 @@
 #define TOTAL_REGISTERS 123        // Total SunSpec registers (0-122 inclusive)
 
 // Inverter Simulation Parameters
-#define INVERTER_MAX_POWER 9000    // Watts (Growatt 9000 TL3-S)
+#define INVERTER_MAX_POWER 10      // Watts (minimal for testing without affecting system)
 #define GRID_FREQUENCY 50.0f       // Hz
 #define GRID_VOLTAGE 230.0f        // V (phase-to-neutral)
 #define POWER_FACTOR 0.99f

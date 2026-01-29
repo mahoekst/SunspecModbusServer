@@ -135,7 +135,7 @@ float Simulator::calculatePower() {
     power = addNoise(power, power * 0.02f);  // 2% noise
 
     // Clamp to valid range
-    if (power < 50) power = 0;  // Below threshold, inverter would be off
+    if (power < 1) power = 0;  // Below threshold, inverter would be off
     if (power > INVERTER_MAX_POWER) power = INVERTER_MAX_POWER;
 
     return power;
