@@ -1,0 +1,139 @@
+# SunSpec Modbus TCP Server for ESP32
+# This device emulates a Growatt 9000 TL3-S three-phase inverter
+# Compatible with Victron GX devices and other SunSpec-compliant systems
+#
+# To use this configuration:
+# 1. Copy to your ESPHome config directory
+# 2. Update WiFi credentials or use the captive portal
+# 3. Install via Home Assistant ESPHome add-on
+
+substitutions:
+  device_name: sunspec-server
+  friendly_name: SunSpec Inverter
+  # Inverter identification (visible in SunSpec Model 1)
+  manufacturer: "Growatt"
+  model: "9000 TL3-S"
+  serial: "EMULATED001"
+  # Simulation parameters
+  max_power: "9000"
+  grid_voltage: "230.0"
+  grid_frequency: "50.0"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+# Enable OTA updates
+ota:
+  platform: esphome
+  password: !secret ota_password
+
+# WiFi configuration
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${device_name}"
+    password: !secret ap_password
+
+captive_portal:
+
+# Web server for local access
+web_server:
+  port: 80
+
+# External component from local directory
+# When using from GitHub, change to:
+# external_components:
+#   - source: github://mahoekst/SunspecModbusServer
+#     components: [sunspec_modbus_server]
+external_components:
+  - source:
+      type: local
+      path: components
+
+# SunSpec Modbus TCP Server
+sunspec_modbus_server:
+  id: sunspec
+  port: 502
+  unit_id: 1
+  manufacturer: ${manufacturer}
+  model: ${model}
+  serial: ${serial}
+  max_power: ${max_power}
+  grid_voltage: ${grid_voltage}
+  grid_frequency: ${grid_frequency}
+  update_interval: 1s
+
+  # Sensors exposed to Home Assistant
+  ac_power:
+    name: "${friendly_name} AC Power"
+  ac_voltage_a:
+    name: "${friendly_name} Voltage Phase A"
+  ac_voltage_b:
+    name: "${friendly_name} Voltage Phase B"
+  ac_voltage_c:
+    name: "${friendly_name} Voltage Phase C"
+  ac_current_a:
+    name: "${friendly_name} Current Phase A"
+  ac_current_b:
+    name: "${friendly_name} Current Phase B"
+  ac_current_c:
+    name: "${friendly_name} Current Phase C"
+  ac_current_total:
+    name: "${friendly_name} Current Total"
+  frequency:
+    name: "${friendly_name} Frequency"
+  power_factor:
+    name: "${friendly_name} Power Factor"
+  total_energy:
+    name: "${friendly_name} Total Energy"
+  dc_voltage:
+    name: "${friendly_name} DC Voltage"
+  dc_current:
+    name: "${friendly_name} DC Current"
+  dc_power:
+    name: "${friendly_name} DC Power"
+  temperature:
+    name: "${friendly_name} Temperature"
+
+# Additional diagnostic sensors
+sensor:
+  - platform: wifi_signal
+    name: "${friendly_name} WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "${friendly_name} Uptime"
+    update_interval: 60s
+
+# Device information
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${friendly_name} IP Address"
+    ssid:
+      name: "${friendly_name} Connected SSID"
+    mac_address:
+      name: "${friendly_name} MAC Address"
+
+# Restart button
+button:
+  - platform: restart
+    name: "${friendly_name} Restart"

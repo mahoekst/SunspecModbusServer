@@ -1,0 +1,5 @@
+# Secrets file (contains passwords)
+secrets.yaml
+
+# ESPHome build artifacts
+.esphome/
