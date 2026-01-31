@@ -70,6 +70,11 @@ void SunSpecModel::begin() {
     // DC Power scale factor: 0
     _registers[MODEL103_DATA_OFFSET + Model103::DCW_SF] = 0;
 
+    // Initialize DC values (PV string voltage present even at 0 power)
+    _registers[MODEL103_DATA_OFFSET + Model103::DCV] = 4500;  // 450.0V with SF=-1
+    _registers[MODEL103_DATA_OFFSET + Model103::DCA] = 0;     // 0A
+    _registers[MODEL103_DATA_OFFSET + Model103::DCW] = 0;     // 0W
+
     // Temperature scale factor: 0 (1°C resolution)
     _registers[MODEL103_DATA_OFFSET + Model103::Tmp_SF] = 0;
 

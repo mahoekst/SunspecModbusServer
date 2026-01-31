@@ -21,6 +21,11 @@ void Simulator::begin() {
     _values.powerFactor = POWER_FACTOR;
     _values.temperature = 35;  // Typical operating temp
 
+    // Initialize DC values (PV string voltage always present when connected)
+    _values.dcVoltage = 450.0f;  // Typical string voltage
+    _values.dcCurrent = 0.0f;
+    _values.dcPower = 0.0f;
+
     DEBUG_SERIAL.println("Simulator: Initialized");
 }
 

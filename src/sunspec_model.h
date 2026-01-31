@@ -16,7 +16,7 @@ enum class InverterState : uint16_t {
     STANDBY = 8
 };
 
-// Model 103 register offsets (relative to Model 103 data start at offset 72)
+// Model 103 register offsets (relative to Model 103 data start at offset 71)
 namespace Model103 {
     const uint8_t A = 0;        // AC Total Current
     const uint8_t AphA = 1;     // Phase A Current
