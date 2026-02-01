@@ -132,7 +132,7 @@ void SunSpecModbusServer::process_request_(WiFiClient &client, uint8_t *buffer, 
   uint16_t start_addr = (buffer[8] << 8) | buffer[9];
   uint16_t quantity = (buffer[10] << 8) | buffer[11];
 
-  ESP_LOGD(TAG, "Request: Unit=%u, FC=%u, Addr=%u, Qty=%u", unit_id, function_code, start_addr, quantity);
+  ESP_LOGI(TAG, "Request: Unit=%u, FC=%u, Addr=%u, Qty=%u", unit_id, function_code, start_addr, quantity);
 
   // Check unit ID
   if (unit_id != this->unit_id_ && unit_id != 0) {
@@ -202,7 +202,7 @@ void SunSpecModbusServer::send_response_(WiFiClient &client, uint8_t *request, u
   }
 
   client.write(response, response_len);
-  ESP_LOGV(TAG, "Sent %u registers starting at %u", reg_count, start_addr);
+  ESP_LOGI(TAG, "Sent %u registers starting at %u", reg_count, start_addr);
 }
 
 void SunSpecModbusServer::send_error_(WiFiClient &client, uint8_t *request, uint8_t error_code) {

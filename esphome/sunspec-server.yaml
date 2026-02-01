@@ -72,7 +72,7 @@ external_components:
 sunspec_modbus_server:
   id: sunspec
   port: 502
-  unit_id: 1
+  unit_id: 126
   manufacturer: ${manufacturer}
   model: ${model}
   serial: ${serial}
