@@ -75,8 +75,8 @@ external_components:
       type: git
       url: https://github.com/mahoekst/SunspecModbusServer
       ref: main
+      path: esphome/components
     components: [ sunspec_modbus_server ]
-    path: esphome/components
 
 # Growatt sensors via modbus_controller
 # Ordered by register address, with force_new_range on each discontinuous block
