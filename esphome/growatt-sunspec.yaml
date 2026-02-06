@@ -69,11 +69,14 @@ modbus_controller:
   setup_priority: -10
   command_throttle: 100ms
 
-# External component
+# External component from GitHub
 external_components:
   - source:
-      type: local
-      path: components
+      type: git
+      url: https://github.com/mahoekst/SunspecModbusServer
+      ref: main
+    components: [ sunspec_modbus_server ]
+    path: esphome/components
 
 # Growatt sensors via modbus_controller
 # Ordered by register address, with force_new_range on each discontinuous block
