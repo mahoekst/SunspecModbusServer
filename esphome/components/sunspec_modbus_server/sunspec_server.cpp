@@ -34,32 +34,18 @@ void SunSpecModbusServer::setup() {
   // Initialize SunSpec registers with static data
   this->init_registers_();
 
-  // Initialize simulation
-  this->start_time_ = millis();
-  this->last_update_ = this->start_time_;
-  this->accumulated_energy_ = 0;
-
-  // Initialize simulated values
-  this->values_.ac_voltage_a = this->grid_voltage_;
-  this->values_.ac_voltage_b = this->grid_voltage_;
-  this->values_.ac_voltage_c = this->grid_voltage_;
-  this->values_.line_voltage_ab = this->grid_voltage_ * 1.732f;
-  this->values_.line_voltage_bc = this->grid_voltage_ * 1.732f;
-  this->values_.line_voltage_ca = this->grid_voltage_ * 1.732f;
-  this->values_.frequency = this->grid_frequency_;
-  this->values_.power_factor = 0.99f;
-  this->values_.temperature = 35;
-  this->values_.dc_voltage = 450.0f;
+  // Initialize timing
+  this->last_update_ = millis();
 
   // Start TCP server
   this->start_server_();
 }
 
 void SunSpecModbusServer::loop() {
-  // Update simulation
+  // Update values from source sensors
   uint32_t now = millis();
   if (now - this->last_update_ >= this->update_interval_) {
-    this->update_simulation_();
+    this->update_from_sources_();
     this->update_registers_();
     this->publish_sensors_();
     this->last_update_ = now;
@@ -76,9 +62,6 @@ void SunSpecModbusServer::dump_config() {
   ESP_LOGCONFIG(TAG, "  Manufacturer: %s", this->manufacturer_.c_str());
   ESP_LOGCONFIG(TAG, "  Model: %s", this->model_.c_str());
   ESP_LOGCONFIG(TAG, "  Serial: %s", this->serial_.c_str());
-  ESP_LOGCONFIG(TAG, "  Max Power: %u W", this->max_power_);
-  ESP_LOGCONFIG(TAG, "  Grid Voltage: %.1f V", this->grid_voltage_);
-  ESP_LOGCONFIG(TAG, "  Grid Frequency: %.1f Hz", this->grid_frequency_);
   ESP_LOGCONFIG(TAG, "  Update Interval: %u ms", this->update_interval_);
 }
 
@@ -339,112 +322,6 @@ void SunSpecModbusServer::write_uint32_(uint16_t offset, uint32_t value) {
   this->registers_[offset + 1] = value & 0xFFFF;          // Low word
 }
 
-void SunSpecModbusServer::update_simulation_() {
-  // Calculate power based on time (simulated solar curve)
-  this->values_.ac_power = this->calculate_power_();
-
-  // Add noise to voltage readings
-  this->values_.ac_voltage_a = this->add_noise_(this->grid_voltage_, 5.0f);
-  this->values_.ac_voltage_b = this->add_noise_(this->grid_voltage_, 5.0f);
-  this->values_.ac_voltage_c = this->add_noise_(this->grid_voltage_, 5.0f);
-
-  // Line voltages (phase-to-phase) = phase voltage * sqrt(3)
-  this->values_.line_voltage_ab = this->add_noise_(this->grid_voltage_ * 1.732f, 8.0f);
-  this->values_.line_voltage_bc = this->add_noise_(this->grid_voltage_ * 1.732f, 8.0f);
-  this->values_.line_voltage_ca = this->add_noise_(this->grid_voltage_ * 1.732f, 8.0f);
-
-  // Frequency with small variation
-  this->values_.frequency = this->add_noise_(this->grid_frequency_, 0.1f);
-
-  // Calculate currents from power (balanced three-phase)
-  if (this->values_.ac_power > 0) {
-    float avg_line_voltage = (this->values_.line_voltage_ab + this->values_.line_voltage_bc +
-                               this->values_.line_voltage_ca) / 3.0f;
-    this->values_.ac_current_total = this->values_.ac_power / (1.732f * avg_line_voltage * this->values_.power_factor);
-
-    // Phase currents (slightly unbalanced for realism)
-    float phase_current = this->values_.ac_current_total / 3.0f;
-    this->values_.ac_current_a = this->add_noise_(phase_current, phase_current * 0.02f);
-    this->values_.ac_current_b = this->add_noise_(phase_current, phase_current * 0.02f);
-    this->values_.ac_current_c = this->add_noise_(phase_current, phase_current * 0.02f);
-    this->values_.ac_current_total = this->values_.ac_current_a + this->values_.ac_current_b + this->values_.ac_current_c;
-    this->values_.state = InverterState::MPPT;
-  } else {
-    this->values_.ac_current_total = 0;
-    this->values_.ac_current_a = 0;
-    this->values_.ac_current_b = 0;
-    this->values_.ac_current_c = 0;
-    this->values_.state = InverterState::STANDBY;
-  }
-
-  // Power factor with small variation
-  this->values_.power_factor = this->add_noise_(0.99f, 0.01f);
-  if (this->values_.power_factor > 1.0f) this->values_.power_factor = 1.0f;
-  if (this->values_.power_factor < 0.95f) this->values_.power_factor = 0.95f;
-
-  // Apparent power (VA) = P / PF
-  this->values_.apparent_power = this->values_.ac_power / this->values_.power_factor;
-
-  // Reactive power (VAr) = sqrt(VA^2 - W^2)
-  float va_squared = this->values_.apparent_power * this->values_.apparent_power;
-  float w_squared = this->values_.ac_power * this->values_.ac_power;
-  this->values_.reactive_power = sqrtf(va_squared - w_squared);
-
-  // DC side calculations (typical inverter efficiency ~97%)
-  float inverter_efficiency = 0.97f;
-  this->values_.dc_power = this->values_.ac_power / inverter_efficiency;
-
-  // DC voltage with noise
-  this->values_.dc_voltage = this->add_noise_(450.0f, 20.0f);
-
-  // DC current from power and voltage
-  if (this->values_.dc_voltage > 0 && this->values_.dc_power > 0) {
-    this->values_.dc_current = this->values_.dc_power / this->values_.dc_voltage;
-  } else {
-    this->values_.dc_current = 0;
-  }
-
-  // Temperature varies slightly with power
-  float temp_rise = (this->values_.ac_power / (float)this->max_power_) * 15.0f;
-  this->values_.temperature = (int16_t)(25 + temp_rise + this->add_noise_(0, 2.0f));
-
-  // Accumulate energy (Wh)
-  float energy_increment = this->values_.ac_power * (float)this->update_interval_ / 3600000.0f;
-  this->accumulated_energy_ += (uint32_t)energy_increment;
-  this->values_.total_energy = this->accumulated_energy_;
-}
-
-float SunSpecModbusServer::calculate_power_() {
-  // Simulate a solar curve using time since start
-  uint32_t elapsed_ms = millis() - this->start_time_;
-  float elapsed_seconds = elapsed_ms / 1000.0f;
-
-  // Complete one "day" cycle every 60 seconds for easy testing
-  float cycle_seconds = 60.0f;
-  float phase = (elapsed_seconds / cycle_seconds) * 2.0f * M_PI;
-
-  // Sine wave from 0 to 1 (shifted to only positive values)
-  float solar_factor = (sinf(phase - M_PI / 2) + 1.0f) / 2.0f;
-
-  // Scale to max power with some noise
-  float power = solar_factor * (float)this->max_power_;
-  power = this->add_noise_(power, power * 0.02f);
-
-  // Clamp to valid range
-  if (power < 1) power = 0;
-  if (power > (float)this->max_power_) power = (float)this->max_power_;
-
-  return power;
-}
-
-float SunSpecModbusServer::add_noise_(float value, float max_noise) {
-  if (max_noise <= 0) return value;
-
-  // Simple random noise using ESP32's random
-  float noise = ((float)(random(0, 2001) - 1000) / 1000.0f) * max_noise;
-  return value + noise;
-}
-
 void SunSpecModbusServer::publish_sensors_() {
   if (this->ac_power_sensor_ != nullptr)
     this->ac_power_sensor_->publish_state(this->values_.ac_power);
@@ -490,6 +367,108 @@ void SunSpecModbusServer::publish_sensors_() {
 
   if (this->temperature_sensor_ != nullptr)
     this->temperature_sensor_->publish_state(this->values_.temperature);
+}
+
+void SunSpecModbusServer::update_from_sources_() {
+  // Read values from external source sensors (e.g., from modbus_controller)
+  // Only update values if the source sensor exists and has a valid state
+
+  // AC Power
+  if (this->source_ac_power_ != nullptr && this->source_ac_power_->has_state()) {
+    this->values_.ac_power = this->source_ac_power_->state;
+  }
+
+  // Phase voltages
+  if (this->source_voltage_a_ != nullptr && this->source_voltage_a_->has_state()) {
+    this->values_.ac_voltage_a = this->source_voltage_a_->state;
+  }
+  if (this->source_voltage_b_ != nullptr && this->source_voltage_b_->has_state()) {
+    this->values_.ac_voltage_b = this->source_voltage_b_->state;
+  }
+  if (this->source_voltage_c_ != nullptr && this->source_voltage_c_->has_state()) {
+    this->values_.ac_voltage_c = this->source_voltage_c_->state;
+  }
+
+  // Calculate line voltages from phase voltages (phase-to-phase = phase * sqrt(3))
+  this->values_.line_voltage_ab = this->values_.ac_voltage_a * 1.732f;
+  this->values_.line_voltage_bc = this->values_.ac_voltage_b * 1.732f;
+  this->values_.line_voltage_ca = this->values_.ac_voltage_c * 1.732f;
+
+  // Phase currents
+  if (this->source_current_a_ != nullptr && this->source_current_a_->has_state()) {
+    this->values_.ac_current_a = this->source_current_a_->state;
+  }
+  if (this->source_current_b_ != nullptr && this->source_current_b_->has_state()) {
+    this->values_.ac_current_b = this->source_current_b_->state;
+  }
+  if (this->source_current_c_ != nullptr && this->source_current_c_->has_state()) {
+    this->values_.ac_current_c = this->source_current_c_->state;
+  }
+
+  // Total current = sum of phase currents
+  this->values_.ac_current_total = this->values_.ac_current_a +
+                                    this->values_.ac_current_b +
+                                    this->values_.ac_current_c;
+
+  // Frequency
+  if (this->source_frequency_ != nullptr && this->source_frequency_->has_state()) {
+    this->values_.frequency = this->source_frequency_->state;
+  }
+
+  // Power factor
+  if (this->source_power_factor_ != nullptr && this->source_power_factor_->has_state()) {
+    this->values_.power_factor = this->source_power_factor_->state;
+  }
+
+  // Calculate apparent power (VA) = P / PF
+  if (this->values_.power_factor > 0) {
+    this->values_.apparent_power = this->values_.ac_power / this->values_.power_factor;
+  } else {
+    this->values_.apparent_power = this->values_.ac_power;
+  }
+
+  // Calculate reactive power (VAr) = sqrt(VA^2 - W^2)
+  float va_squared = this->values_.apparent_power * this->values_.apparent_power;
+  float w_squared = this->values_.ac_power * this->values_.ac_power;
+  if (va_squared > w_squared) {
+    this->values_.reactive_power = sqrtf(va_squared - w_squared);
+  } else {
+    this->values_.reactive_power = 0;
+  }
+
+  // Total energy (Wh)
+  if (this->source_total_energy_ != nullptr && this->source_total_energy_->has_state()) {
+    this->values_.total_energy = (uint32_t)this->source_total_energy_->state;
+  }
+
+  // DC voltage
+  if (this->source_dc_voltage_ != nullptr && this->source_dc_voltage_->has_state()) {
+    this->values_.dc_voltage = this->source_dc_voltage_->state;
+  }
+
+  // DC current
+  if (this->source_dc_current_ != nullptr && this->source_dc_current_->has_state()) {
+    this->values_.dc_current = this->source_dc_current_->state;
+  }
+
+  // DC power - read from source or calculate from V*I
+  if (this->source_dc_power_ != nullptr && this->source_dc_power_->has_state()) {
+    this->values_.dc_power = this->source_dc_power_->state;
+  } else if (this->values_.dc_voltage > 0 && this->values_.dc_current > 0) {
+    this->values_.dc_power = this->values_.dc_voltage * this->values_.dc_current;
+  }
+
+  // Temperature
+  if (this->source_temperature_ != nullptr && this->source_temperature_->has_state()) {
+    this->values_.temperature = (int16_t)this->source_temperature_->state;
+  }
+
+  // Set operating state based on power
+  if (this->values_.ac_power > 0) {
+    this->values_.state = InverterState::MPPT;
+  } else {
+    this->values_.state = InverterState::STANDBY;
+  }
 }
 
 }  // namespace sunspec_modbus_server

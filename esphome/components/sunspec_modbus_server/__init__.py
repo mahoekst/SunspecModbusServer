@@ -3,7 +3,6 @@ import esphome.config_validation as cv
 from esphome.const import (
     CONF_ID,
     CONF_PORT,
-    CONF_NAME,
     CONF_UPDATE_INTERVAL,
     UNIT_WATT,
     UNIT_VOLT,
@@ -30,11 +29,24 @@ CONF_UNIT_ID = "unit_id"
 CONF_MANUFACTURER = "manufacturer"
 CONF_MODEL = "model"
 CONF_SERIAL = "serial"
-CONF_MAX_POWER = "max_power"
-CONF_GRID_VOLTAGE = "grid_voltage"
-CONF_GRID_FREQUENCY = "grid_frequency"
 
-# Sensor configuration keys
+# Source sensor configuration keys (input from external sensors like modbus_controller)
+CONF_SOURCE_AC_POWER = "source_ac_power"
+CONF_SOURCE_VOLTAGE_A = "source_voltage_a"
+CONF_SOURCE_VOLTAGE_B = "source_voltage_b"
+CONF_SOURCE_VOLTAGE_C = "source_voltage_c"
+CONF_SOURCE_CURRENT_A = "source_current_a"
+CONF_SOURCE_CURRENT_B = "source_current_b"
+CONF_SOURCE_CURRENT_C = "source_current_c"
+CONF_SOURCE_FREQUENCY = "source_frequency"
+CONF_SOURCE_POWER_FACTOR = "source_power_factor"
+CONF_SOURCE_TOTAL_ENERGY = "source_total_energy"
+CONF_SOURCE_DC_VOLTAGE = "source_dc_voltage"
+CONF_SOURCE_DC_CURRENT = "source_dc_current"
+CONF_SOURCE_DC_POWER = "source_dc_power"
+CONF_SOURCE_TEMPERATURE = "source_temperature"
+
+# Output sensor configuration keys (publish to Home Assistant)
 CONF_AC_POWER = "ac_power"
 CONF_AC_VOLTAGE_A = "ac_voltage_a"
 CONF_AC_VOLTAGE_B = "ac_voltage_b"
@@ -64,11 +76,23 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_MANUFACTURER, default="Growatt"): cv.string,
         cv.Optional(CONF_MODEL, default="9000 TL3-S"): cv.string,
         cv.Optional(CONF_SERIAL, default="EMULATED001"): cv.string,
-        cv.Optional(CONF_MAX_POWER, default=9000): cv.positive_int,
-        cv.Optional(CONF_GRID_VOLTAGE, default=230.0): cv.positive_float,
-        cv.Optional(CONF_GRID_FREQUENCY, default=50.0): cv.positive_float,
         cv.Optional(CONF_UPDATE_INTERVAL, default="1s"): cv.update_interval,
-        # Sensor configurations
+        # Source sensors (input from external components like modbus_controller)
+        cv.Optional(CONF_SOURCE_AC_POWER): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_VOLTAGE_A): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_VOLTAGE_B): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_VOLTAGE_C): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_CURRENT_A): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_CURRENT_B): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_CURRENT_C): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_FREQUENCY): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_POWER_FACTOR): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_TOTAL_ENERGY): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_DC_VOLTAGE): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_DC_CURRENT): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_DC_POWER): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_TEMPERATURE): cv.use_id(sensor.Sensor),
+        # Output sensor configurations (publish to Home Assistant)
         cv.Optional(CONF_AC_POWER): sensor.sensor_schema(
             unit_of_measurement=UNIT_WATT,
             accuracy_decimals=0,
@@ -170,12 +194,66 @@ async def to_code(config):
     cg.add(var.set_manufacturer(config[CONF_MANUFACTURER]))
     cg.add(var.set_model(config[CONF_MODEL]))
     cg.add(var.set_serial(config[CONF_SERIAL]))
-    cg.add(var.set_max_power(config[CONF_MAX_POWER]))
-    cg.add(var.set_grid_voltage(config[CONF_GRID_VOLTAGE]))
-    cg.add(var.set_grid_frequency(config[CONF_GRID_FREQUENCY]))
     cg.add(var.set_update_interval(config[CONF_UPDATE_INTERVAL]))
 
-    # Register sensors
+    # Register source sensors (input from external components)
+    if CONF_SOURCE_AC_POWER in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_AC_POWER])
+        cg.add(var.set_source_ac_power(sens))
+
+    if CONF_SOURCE_VOLTAGE_A in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_VOLTAGE_A])
+        cg.add(var.set_source_voltage_a(sens))
+
+    if CONF_SOURCE_VOLTAGE_B in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_VOLTAGE_B])
+        cg.add(var.set_source_voltage_b(sens))
+
+    if CONF_SOURCE_VOLTAGE_C in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_VOLTAGE_C])
+        cg.add(var.set_source_voltage_c(sens))
+
+    if CONF_SOURCE_CURRENT_A in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_CURRENT_A])
+        cg.add(var.set_source_current_a(sens))
+
+    if CONF_SOURCE_CURRENT_B in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_CURRENT_B])
+        cg.add(var.set_source_current_b(sens))
+
+    if CONF_SOURCE_CURRENT_C in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_CURRENT_C])
+        cg.add(var.set_source_current_c(sens))
+
+    if CONF_SOURCE_FREQUENCY in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_FREQUENCY])
+        cg.add(var.set_source_frequency(sens))
+
+    if CONF_SOURCE_POWER_FACTOR in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_POWER_FACTOR])
+        cg.add(var.set_source_power_factor(sens))
+
+    if CONF_SOURCE_TOTAL_ENERGY in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_TOTAL_ENERGY])
+        cg.add(var.set_source_total_energy(sens))
+
+    if CONF_SOURCE_DC_VOLTAGE in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_DC_VOLTAGE])
+        cg.add(var.set_source_dc_voltage(sens))
+
+    if CONF_SOURCE_DC_CURRENT in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_DC_CURRENT])
+        cg.add(var.set_source_dc_current(sens))
+
+    if CONF_SOURCE_DC_POWER in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_DC_POWER])
+        cg.add(var.set_source_dc_power(sens))
+
+    if CONF_SOURCE_TEMPERATURE in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_TEMPERATURE])
+        cg.add(var.set_source_temperature(sens))
+
+    # Register output sensors (publish to Home Assistant)
     if CONF_AC_POWER in config:
         sens = await sensor.new_sensor(config[CONF_AC_POWER])
         cg.add(var.set_ac_power_sensor(sens))

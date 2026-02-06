@@ -78,8 +78,8 @@ namespace Model103 {
   static const uint8_t StVnd = 37;   // Vendor Operating State
 }  // namespace Model103
 
-// Simulated inverter values
-struct SimulatedValues {
+// Inverter values (from source sensors)
+struct InverterValues {
   float ac_power{0};
   float ac_voltage_a{230.0f};
   float ac_voltage_b{230.0f};
@@ -118,12 +118,25 @@ class SunSpecModbusServer : public Component {
   void set_manufacturer(const std::string &manufacturer) { this->manufacturer_ = manufacturer; }
   void set_model(const std::string &model) { this->model_ = model; }
   void set_serial(const std::string &serial) { this->serial_ = serial; }
-  void set_max_power(uint32_t max_power) { this->max_power_ = max_power; }
-  void set_grid_voltage(float grid_voltage) { this->grid_voltage_ = grid_voltage; }
-  void set_grid_frequency(float grid_frequency) { this->grid_frequency_ = grid_frequency; }
   void set_update_interval(uint32_t update_interval) { this->update_interval_ = update_interval; }
 
-  // Sensor setters
+  // Source sensor setters (input from external components like modbus_controller)
+  void set_source_ac_power(sensor::Sensor *sensor) { this->source_ac_power_ = sensor; }
+  void set_source_voltage_a(sensor::Sensor *sensor) { this->source_voltage_a_ = sensor; }
+  void set_source_voltage_b(sensor::Sensor *sensor) { this->source_voltage_b_ = sensor; }
+  void set_source_voltage_c(sensor::Sensor *sensor) { this->source_voltage_c_ = sensor; }
+  void set_source_current_a(sensor::Sensor *sensor) { this->source_current_a_ = sensor; }
+  void set_source_current_b(sensor::Sensor *sensor) { this->source_current_b_ = sensor; }
+  void set_source_current_c(sensor::Sensor *sensor) { this->source_current_c_ = sensor; }
+  void set_source_frequency(sensor::Sensor *sensor) { this->source_frequency_ = sensor; }
+  void set_source_power_factor(sensor::Sensor *sensor) { this->source_power_factor_ = sensor; }
+  void set_source_total_energy(sensor::Sensor *sensor) { this->source_total_energy_ = sensor; }
+  void set_source_dc_voltage(sensor::Sensor *sensor) { this->source_dc_voltage_ = sensor; }
+  void set_source_dc_current(sensor::Sensor *sensor) { this->source_dc_current_ = sensor; }
+  void set_source_dc_power(sensor::Sensor *sensor) { this->source_dc_power_ = sensor; }
+  void set_source_temperature(sensor::Sensor *sensor) { this->source_temperature_ = sensor; }
+
+  // Output sensor setters (publish to Home Assistant)
   void set_ac_power_sensor(sensor::Sensor *sensor) { this->ac_power_sensor_ = sensor; }
   void set_ac_voltage_a_sensor(sensor::Sensor *sensor) { this->ac_voltage_a_sensor_ = sensor; }
   void set_ac_voltage_b_sensor(sensor::Sensor *sensor) { this->ac_voltage_b_sensor_ = sensor; }
@@ -154,10 +167,8 @@ class SunSpecModbusServer : public Component {
   void write_string_(uint16_t offset, const char *str, uint16_t max_len);
   void write_uint32_(uint16_t offset, uint32_t value);
 
-  // Simulation
-  void update_simulation_();
-  float calculate_power_();
-  float add_noise_(float value, float max_noise);
+  // Data sources
+  void update_from_sources_();
   void publish_sensors_();
 
   // Configuration
@@ -166,9 +177,6 @@ class SunSpecModbusServer : public Component {
   std::string manufacturer_{"Growatt"};
   std::string model_{"9000 TL3-S"};
   std::string serial_{"EMULATED001"};
-  uint32_t max_power_{9000};
-  float grid_voltage_{230.0f};
-  float grid_frequency_{50.0f};
   uint32_t update_interval_{1000};
 
   // Server state
@@ -179,13 +187,11 @@ class SunSpecModbusServer : public Component {
   // SunSpec registers
   uint16_t registers_[TOTAL_REGISTERS];
 
-  // Simulation state
-  SimulatedValues values_;
-  uint32_t start_time_{0};
+  // Inverter values
+  InverterValues values_;
   uint32_t last_update_{0};
-  uint32_t accumulated_energy_{0};
 
-  // Sensors
+  // Output sensors (publish to Home Assistant)
   sensor::Sensor *ac_power_sensor_{nullptr};
   sensor::Sensor *ac_voltage_a_sensor_{nullptr};
   sensor::Sensor *ac_voltage_b_sensor_{nullptr};
@@ -201,6 +207,22 @@ class SunSpecModbusServer : public Component {
   sensor::Sensor *dc_current_sensor_{nullptr};
   sensor::Sensor *dc_power_sensor_{nullptr};
   sensor::Sensor *temperature_sensor_{nullptr};
+
+  // Source sensors (input from external components like modbus_controller)
+  sensor::Sensor *source_ac_power_{nullptr};
+  sensor::Sensor *source_voltage_a_{nullptr};
+  sensor::Sensor *source_voltage_b_{nullptr};
+  sensor::Sensor *source_voltage_c_{nullptr};
+  sensor::Sensor *source_current_a_{nullptr};
+  sensor::Sensor *source_current_b_{nullptr};
+  sensor::Sensor *source_current_c_{nullptr};
+  sensor::Sensor *source_frequency_{nullptr};
+  sensor::Sensor *source_power_factor_{nullptr};
+  sensor::Sensor *source_total_energy_{nullptr};
+  sensor::Sensor *source_dc_voltage_{nullptr};
+  sensor::Sensor *source_dc_current_{nullptr};
+  sensor::Sensor *source_dc_power_{nullptr};
+  sensor::Sensor *source_temperature_{nullptr};
 };
 
 }  // namespace sunspec_modbus_server
