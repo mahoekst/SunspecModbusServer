@@ -100,6 +100,11 @@ Connect to `<ESP32_IP>:502` and read holding registers starting at 40000:
 - `tzapu/WiFiManager` - WiFi captive portal
 - ESP32 Arduino Core (via espressif32 platform)
 
+## Development Guidelines
+- Always check that suggested APIs/methods are not deprecated before using them
+- Verify compatibility with the current ESP32 Arduino Core and ESP-IDF versions
+- Avoid using deprecated functions even if they still work - use the recommended replacements
+
 ## Future Work (Phase 2)
 - Add Modbus RTU client for RS485 communication
 - Read actual values from Growatt inverter

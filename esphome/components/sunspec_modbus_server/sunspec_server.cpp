@@ -76,11 +76,11 @@ void SunSpecModbusServer::handle_client_() {
   if (this->server_->hasClient()) {
     if (this->client_connected_) {
       // Already have a client, reject new one
-      WiFiClient new_client = this->server_->available();
+      WiFiClient new_client = this->server_->accept();
       new_client.stop();
       ESP_LOGW(TAG, "Rejected new client, already connected");
     } else {
-      this->client_ = this->server_->available();
+      this->client_ = this->server_->accept();
       this->client_connected_ = true;
       ESP_LOGI(TAG, "Client connected from %s", this->client_.remoteIP().toString().c_str());
     }
