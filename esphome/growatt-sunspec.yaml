@@ -1,0 +1,328 @@
+# Growatt Inverter to SunSpec Bridge
+# Reads real data from Growatt inverter via Modbus RTU (RS485)
+# Exposes it via SunSpec-compliant Modbus TCP for Victron GX
+# Also publishes all values to Home Assistant
+#
+# Hardware: LilyGo T-CAN485 ESP32 board
+# Connection: RS485 to Growatt inverter COM port
+
+substitutions:
+  device_name: growatt-sunspec
+  friendly_name: Growatt SunSpec Bridge
+  manufacturer: "Growatt"
+  model: "9000 TL3-S"
+  serial: "GROWATT001"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+  level: INFO
+  logs:
+    modbus_controller: ERROR
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  platform: esphome
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${device_name}"
+    password: !secret ap_password
+
+captive_portal:
+
+web_server:
+  port: 80
+
+# UART for RS485 communication with Growatt
+uart:
+  id: uart_growatt
+  rx_pin: GPIO21
+  tx_pin: GPIO22
+  baud_rate: 9600
+
+# Modbus RTU client
+modbus:
+  id: modbus_growatt
+  uart_id: uart_growatt
+  send_wait_time: 200ms
+
+# Modbus controller for Growatt inverter
+modbus_controller:
+  id: growatt_controller
+  modbus_id: modbus_growatt
+  address: 1
+  update_interval: 5s
+  setup_priority: -10
+  command_throttle: 100ms
+
+# External component
+external_components:
+  - source:
+      type: local
+      path: components
+
+# Growatt sensors via modbus_controller
+# Ordered by register address, with force_new_range on each discontinuous block
+sensor:
+  # === DC Registers (3-7) ===
+  # DC Voltage PV1 (V) - Register 3
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_dc_voltage
+    name: "Growatt DC Voltage"
+    address: 3
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  # DC Current PV1 (A) - Register 4-5
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_dc_current
+    name: "Growatt DC Current"
+    address: 4
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.1
+
+  # DC Power PV1 (W) - Register 6-7
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_dc_power
+    name: "Growatt DC Power"
+    address: 6
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+
+  # === AC Registers (35-40) ===
+  # AC Power (W) - Register 35-36
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_ac_power
+    name: "Growatt AC Power"
+    address: 35
+    register_type: read
+    value_type: U_DWORD
+    force_new_range: true
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+
+  # Frequency (Hz) - Register 37
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_frequency
+    name: "Growatt Frequency"
+    address: 37
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+  # Phase A Voltage (V) - Register 38
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_voltage_a
+    name: "Growatt Voltage Phase A"
+    address: 38
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  # Phase A Current (A) - Register 39-40
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_current_a
+    name: "Growatt Current Phase A"
+    address: 39
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.1
+
+  # === Phase B Registers (42-44) ===
+  # Phase B Voltage (V) - Register 42
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_voltage_b
+    name: "Growatt Voltage Phase B"
+    address: 42
+    register_type: read
+    value_type: U_WORD
+    force_new_range: true
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  # Phase B Current (A) - Register 43-44
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_current_b
+    name: "Growatt Current Phase B"
+    address: 43
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.1
+
+  # === Phase C Registers (46-48) ===
+  # Phase C Voltage (V) - Register 46
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_voltage_c
+    name: "Growatt Voltage Phase C"
+    address: 46
+    register_type: read
+    value_type: U_WORD
+    force_new_range: true
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  # Phase C Current (A) - Register 47-48
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_current_c
+    name: "Growatt Current Phase C"
+    address: 47
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.1
+
+  # === Energy Register (55-56) ===
+  # Total Energy (Wh) - Register 55-56
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_total_energy
+    name: "Growatt Total Energy"
+    address: 55
+    register_type: read
+    value_type: U_DWORD
+    force_new_range: true
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+    filters:
+      - multiply: 100  # Convert from 0.1 kWh to Wh
+
+  # === Temperature Register (93) ===
+  # Inverter Temperature (°C) - Register 93
+  - platform: modbus_controller
+    modbus_controller_id: growatt_controller
+    id: growatt_temperature
+    name: "Growatt Temperature"
+    address: 93
+    register_type: read
+    value_type: U_WORD
+    force_new_range: true
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.1
+
+  # Diagnostics
+  - platform: wifi_signal
+    name: "${friendly_name} WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "${friendly_name} Uptime"
+    update_interval: 60s
+
+# SunSpec Modbus TCP Server - exposes Growatt data to Victron
+sunspec_modbus_server:
+  id: sunspec
+  port: 502
+  unit_id: 126
+  manufacturer: ${manufacturer}
+  model: ${model}
+  serial: ${serial}
+  update_interval: 1s
+
+  # Source sensors from Growatt
+  source_ac_power: growatt_ac_power
+  source_voltage_a: growatt_voltage_a
+  source_voltage_b: growatt_voltage_b
+  source_voltage_c: growatt_voltage_c
+  source_current_a: growatt_current_a
+  source_current_b: growatt_current_b
+  source_current_c: growatt_current_c
+  source_frequency: growatt_frequency
+  source_total_energy: growatt_total_energy
+  source_dc_voltage: growatt_dc_voltage
+  source_dc_current: growatt_dc_current
+  source_dc_power: growatt_dc_power
+  source_temperature: growatt_temperature
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${friendly_name} IP Address"
+
+button:
+  - platform: restart
+    name: "${friendly_name} Restart"
