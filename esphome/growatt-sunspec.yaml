@@ -27,20 +27,25 @@ logger:
   logs:
     modbus_controller: ERROR
 
+# Enable Home Assistant API
 api:
   encryption:
-    key: !secret api_encryption_key
+    key: !secret esphome_api_key
 
 ota:
+  password: !secret esphome_ota_password
   platform: esphome
-  password: !secret ota_password
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "${device_name}"
-    password: !secret ap_password
+    ssid: !secret esphome_ap_ssid
+    password: !secret esphome_ap_password
+
+time:
+  - platform: homeassistant
 
 captive_portal:
 
@@ -97,6 +102,7 @@ external_components:
       ref: main
       path: esphome/components
     components: [ sunspec_modbus_server ]
+
 
 # Growatt sensors via modbus_controller
 # Ordered by register address, with force_new_range on each discontinuous block
