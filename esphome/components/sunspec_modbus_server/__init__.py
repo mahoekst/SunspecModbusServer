@@ -1,5 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome.core import CORE
 from esphome.const import (
     CONF_ID,
     CONF_PORT,
@@ -188,6 +189,11 @@ CONFIG_SCHEMA = cv.Schema(
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+
+    if CORE.is_esp32:
+        cg.add_library("WiFi", None)
+    elif CORE.is_esp8266:
+        cg.add_library("ESP8266WiFi", None)
 
     cg.add(var.set_port(config[CONF_PORT]))
     cg.add(var.set_unit_id(config[CONF_UNIT_ID]))
