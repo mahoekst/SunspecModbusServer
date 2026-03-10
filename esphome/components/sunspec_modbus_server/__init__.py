@@ -22,7 +22,7 @@ from esphome.const import (
 from esphome.components import sensor
 
 CODEOWNERS = ["@mahoekst"]
-DEPENDENCIES = ["network"]
+DEPENDENCIES = ["wifi"]
 AUTO_LOAD = ["sensor"]
 
 CONF_UNIT_ID = "unit_id"

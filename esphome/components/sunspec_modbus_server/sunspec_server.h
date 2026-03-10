@@ -3,7 +3,13 @@
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
 
+#ifdef USE_ARDUINO
+#ifdef USE_ESP32
 #include <WiFi.h>
+#elif defined(USE_ESP8266)
+#include <ESP8266WiFi.h>
+#endif
+#endif
 #include <vector>
 #include <memory>
 

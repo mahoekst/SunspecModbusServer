@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pio run:*)",
+      "Bash(~/.platformio/penv/Scripts/pio.exe run:*)",
+      "Bash(mode)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: SunSpec Modbus TCP server for ESP32\n\n- Implements SunSpec Model 1 \\(Common\\) and Model 103 \\(Three-Phase Inverter\\)\n- Simulates Growatt 9000 TL3-S inverter with realistic values\n- WiFi captive portal for configuration\n- Fixed register layout \\(Model 103 at offset 69\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nReduce simulated power to minimal values for testing\n\n- Set INVERTER_MAX_POWER to 10W to avoid affecting real system\n- Lower power threshold from 50W to 1W\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(gh repo:*)",
+      "Bash(git push:*)",
+      "Bash(git config:*)",
+      "Bash(where:*)",
+      "Bash(cmd.exe /c \"where gh\")",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:esphome.io)",
+      "Bash(esphome version:*)",
+      "Bash(pip show:*)",
+      "Bash(esphome config:*)",
+      "Bash(esphome compile:*)",
+      "Bash(git rm:*)",
+      "Bash(esphome run:*)",
+      "Bash(python:*)",
+      "Bash(esphome upload:*)",
+      "Bash(py -m esphome run:*)",
+      "Bash(git merge:*)"
+    ]
+  }
+}
