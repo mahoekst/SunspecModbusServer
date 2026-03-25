@@ -21,12 +21,14 @@ from esphome.const import (
     STATE_CLASS_TOTAL_INCREASING,
 )
 from esphome.components import sensor
+from esphome.components import number
 
 CODEOWNERS = ["@mahoekst"]
 DEPENDENCIES = ["wifi"]
-AUTO_LOAD = ["sensor"]
+AUTO_LOAD = ["sensor", "number"]
 
 CONF_UNIT_ID = "unit_id"
+CONF_TARGET_POWER_LIMIT = "target_power_limit"
 CONF_MANUFACTURER = "manufacturer"
 CONF_MODEL = "model"
 CONF_SERIAL = "serial"
@@ -182,6 +184,8 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_TEMPERATURE,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
+        # Power limit number (target for Growatt active power rate via Model 123)
+        cv.Optional(CONF_TARGET_POWER_LIMIT): cv.use_id(number.Number),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -319,3 +323,7 @@ async def to_code(config):
     if CONF_TEMPERATURE in config:
         sens = await sensor.new_sensor(config[CONF_TEMPERATURE])
         cg.add(var.set_temperature_sensor(sens))
+
+    if CONF_TARGET_POWER_LIMIT in config:
+        num = await cg.get_variable(config[CONF_TARGET_POWER_LIMIT])
+        cg.add(var.set_power_limit_number(num))

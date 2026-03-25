@@ -13,6 +13,8 @@ static const char *const TAG = "sunspec_modbus_server";
 // Modbus function codes
 static const uint8_t FC_READ_HOLDING_REGISTERS = 0x03;
 static const uint8_t FC_READ_INPUT_REGISTERS = 0x04;
+static const uint8_t FC_WRITE_SINGLE_REGISTER = 0x06;
+static const uint8_t FC_WRITE_MULTIPLE_REGISTERS = 0x10;
 
 // Modbus exception codes
 static const uint8_t EX_ILLEGAL_FUNCTION = 0x01;
@@ -148,6 +150,14 @@ void SunSpecModbusServer::process_request_(WiFiClient &client, uint8_t *buffer, 
       this->send_response_(client, buffer, reg_start, quantity);
       break;
     }
+    case FC_WRITE_SINGLE_REGISTER: {
+      this->handle_write_single_(client, buffer);
+      break;
+    }
+    case FC_WRITE_MULTIPLE_REGISTERS: {
+      this->handle_write_multiple_(client, buffer, len);
+      break;
+    }
     default:
       ESP_LOGW(TAG, "Unsupported function code: %u", function_code);
       this->send_error_(client, buffer, EX_ILLEGAL_FUNCTION);
@@ -211,6 +221,89 @@ void SunSpecModbusServer::send_error_(WiFiClient &client, uint8_t *request, uint
   ESP_LOGD(TAG, "Sent error response: %u", error_code);
 }
 
+void SunSpecModbusServer::handle_write_single_(WiFiClient &client, uint8_t *buffer) {
+  uint16_t reg_addr = (buffer[8] << 8) | buffer[9];
+  uint16_t value = (buffer[10] << 8) | buffer[11];
+
+  // Convert to internal index
+  uint16_t reg_idx = (reg_addr >= SUNSPEC_BASE_ADDRESS) ? reg_addr - SUNSPEC_BASE_ADDRESS : reg_addr;
+
+  if (reg_idx >= TOTAL_REGISTERS) {
+    this->send_error_(client, buffer, EX_ILLEGAL_DATA_ADDRESS);
+    return;
+  }
+
+  this->registers_[reg_idx] = value;
+  this->process_write_(reg_idx, 1);
+
+  // Echo the request as response (FC06 standard)
+  client.write(buffer, 12);
+  ESP_LOGI(TAG, "Write single reg %u = %u", reg_idx, value);
+}
+
+void SunSpecModbusServer::handle_write_multiple_(WiFiClient &client, uint8_t *buffer, size_t len) {
+  uint16_t reg_addr = (buffer[8] << 8) | buffer[9];
+  uint16_t quantity = (buffer[10] << 8) | buffer[11];
+  // buffer[12] = byte count
+
+  uint16_t reg_idx = (reg_addr >= SUNSPEC_BASE_ADDRESS) ? reg_addr - SUNSPEC_BASE_ADDRESS : reg_addr;
+
+  if (reg_idx + quantity > TOTAL_REGISTERS) {
+    this->send_error_(client, buffer, EX_ILLEGAL_DATA_ADDRESS);
+    return;
+  }
+
+  // Write register values
+  for (uint16_t i = 0; i < quantity && (size_t)(13 + i * 2 + 1) < len; i++) {
+    uint16_t value = (buffer[13 + i * 2] << 8) | buffer[14 + i * 2];
+    this->registers_[reg_idx + i] = value;
+  }
+  this->process_write_(reg_idx, quantity);
+
+  // Send FC16 response: MBAP + unit + FC + start_addr + quantity
+  uint8_t response[12];
+  memcpy(response, buffer, 4);  // Transaction + protocol ID
+  response[4] = 0;
+  response[5] = 6;  // Length = 6
+  response[6] = buffer[6];  // Unit ID
+  response[7] = FC_WRITE_MULTIPLE_REGISTERS;
+  response[8] = buffer[8];  // Start address hi
+  response[9] = buffer[9];  // Start address lo
+  response[10] = buffer[10]; // Quantity hi
+  response[11] = buffer[11]; // Quantity lo
+  client.write(response, 12);
+  ESP_LOGI(TAG, "Write multiple %u regs starting at %u", quantity, reg_idx);
+}
+
+void SunSpecModbusServer::process_write_(uint16_t reg_start, uint16_t reg_count) {
+  // Check if any Model 123 registers were touched
+  if (reg_start + reg_count <= MODEL123_DATA_OFFSET) return;
+  if (reg_start >= MODEL123_DATA_OFFSET + MODEL123_LENGTH) return;
+
+  // Model 123 WMaxLimPct / WMaxLim_Ena control
+  uint16_t ena = this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLim_Ena];
+  uint16_t pct_raw = this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct];
+  int16_t sf = (int16_t)this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct_SF];
+
+  // Apply scale factor: value * 10^sf
+  float pct;
+  if (sf == 0) {
+    pct = (float)pct_raw;
+  } else {
+    pct = (float)pct_raw * powf(10.0f, (float)sf);
+  }
+  if (pct < 0.0f) pct = 0.0f;
+  if (pct > 100.0f) pct = 100.0f;
+
+  if (this->power_limit_number_ != nullptr) {
+    float target = (ena == 1) ? pct : 100.0f;  // Disabled = restore full power
+    ESP_LOGI(TAG, "Model123: WMaxLim_Ena=%u WMaxLimPct=%.1f%% -> setting Growatt to %.1f%%", ena, pct, target);
+    auto call = this->power_limit_number_->make_call();
+    call.set_value(target);
+    call.perform();
+  }
+}
+
 void SunSpecModbusServer::init_registers_() {
   // SunSpec identifier "SunS" (0x5375, 0x6E53)
   this->registers_[SUNSPEC_ID_OFFSET] = 0x5375;      // "Su"
@@ -249,7 +342,19 @@ void SunSpecModbusServer::init_registers_() {
   // Initialize DC voltage (always present when connected)
   this->registers_[MODEL103_DATA_OFFSET + Model103::DCV] = 4500;  // 450.0V
 
-  // End model marker
+  // Model 123 (Immediate Controls) Header
+  this->registers_[MODEL123_ID_OFFSET] = 123;
+  this->registers_[MODEL123_LENGTH_OFFSET] = MODEL123_LENGTH;
+
+  // Model 123 scale factors
+  this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct_SF] = 0;   // Direct % (0-100)
+  this->registers_[MODEL123_DATA_OFFSET + Model123::OutPFSet_SF] = (uint16_t)(int16_t)(-2);
+
+  // Default: no power limit (100%), disabled
+  this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct] = 100;
+  this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLim_Ena] = 0;
+
+  // End model marker (now at offset 147)
   this->registers_[END_MODEL_OFFSET] = 0xFFFF;
   this->registers_[END_MODEL_OFFSET + 1] = 0;
 

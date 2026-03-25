@@ -2,6 +2,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/number/number.h"
 
 #ifdef USE_ARDUINO
 #ifdef USE_ESP32
@@ -39,8 +40,16 @@ static const uint16_t MODEL103_ID_OFFSET = 69;
 static const uint16_t MODEL103_LENGTH_OFFSET = 70;
 static const uint16_t MODEL103_DATA_OFFSET = 71;
 static const uint16_t MODEL103_LENGTH = 50;
-static const uint16_t END_MODEL_OFFSET = 121;
-static const uint16_t TOTAL_REGISTERS = 123;
+
+// Model 123 (Immediate Controls)
+static const uint16_t MODEL123_ID_OFFSET = 121;
+static const uint16_t MODEL123_LENGTH_OFFSET = 122;
+static const uint16_t MODEL123_DATA_OFFSET = 123;
+static const uint16_t MODEL123_LENGTH = 24;
+
+// Updated end marker and total
+static const uint16_t END_MODEL_OFFSET = 147;
+static const uint16_t TOTAL_REGISTERS = 149;
 
 // Model 103 register offsets (relative to MODEL103_DATA_OFFSET)
 namespace Model103 {
@@ -83,6 +92,29 @@ namespace Model103 {
   static const uint8_t St = 36;      // Operating State
   static const uint8_t StVnd = 37;   // Vendor Operating State
 }  // namespace Model103
+
+// Model 123 register offsets (relative to MODEL123_DATA_OFFSET)
+namespace Model123 {
+  static const uint8_t WMaxLimPct = 0;        // Max power output %
+  static const uint8_t WMaxLimPct_WinTms = 1;
+  static const uint8_t WMaxLimPct_RvrtTms = 2;
+  static const uint8_t WMaxLimPct_RmpTms = 3;
+  static const uint8_t WMaxLim_Ena = 4;        // 0=disabled, 1=enabled
+  static const uint8_t OutPFSet = 5;
+  static const uint8_t OutPFSet_WinTms = 6;
+  static const uint8_t OutPFSet_RvrtTms = 7;
+  static const uint8_t OutPFSet_RmpTms = 8;
+  static const uint8_t OutPFSet_Ena = 9;
+  static const uint8_t VArPct_Mod = 10;
+  static const uint8_t VArPct_WinTms = 11;
+  static const uint8_t VArPct_RvrtTms = 12;
+  static const uint8_t VArPct_RmpTms = 13;
+  static const uint8_t VArSetPct = 14;
+  static const uint8_t VArSetPct_Ena = 15;
+  static const uint8_t WMaxLimPct_SF = 16;     // Scale factor (we set to 0)
+  static const uint8_t OutPFSet_SF = 17;
+  // 18-23: padding
+}  // namespace Model123
 
 // Inverter values (from source sensors)
 struct InverterValues {
@@ -142,6 +174,9 @@ class SunSpecModbusServer : public Component {
   void set_source_dc_power(sensor::Sensor *sensor) { this->source_dc_power_ = sensor; }
   void set_source_temperature(sensor::Sensor *sensor) { this->source_temperature_ = sensor; }
 
+  // Power limit number setter (target for Growatt active power rate)
+  void set_power_limit_number(number::Number *number) { this->power_limit_number_ = number; }
+
   // Output sensor setters (publish to Home Assistant)
   void set_ac_power_sensor(sensor::Sensor *sensor) { this->ac_power_sensor_ = sensor; }
   void set_ac_voltage_a_sensor(sensor::Sensor *sensor) { this->ac_voltage_a_sensor_ = sensor; }
@@ -166,6 +201,9 @@ class SunSpecModbusServer : public Component {
   void process_request_(WiFiClient &client, uint8_t *buffer, size_t len);
   void send_response_(WiFiClient &client, uint8_t *request, uint16_t start_addr, uint16_t reg_count);
   void send_error_(WiFiClient &client, uint8_t *request, uint8_t error_code);
+  void handle_write_single_(WiFiClient &client, uint8_t *buffer);
+  void handle_write_multiple_(WiFiClient &client, uint8_t *buffer, size_t len);
+  void process_write_(uint16_t reg_start, uint16_t reg_count);
 
   // SunSpec register management
   void init_registers_();
@@ -213,6 +251,9 @@ class SunSpecModbusServer : public Component {
   sensor::Sensor *dc_current_sensor_{nullptr};
   sensor::Sensor *dc_power_sensor_{nullptr};
   sensor::Sensor *temperature_sensor_{nullptr};
+
+  // Power limit number (target for Growatt active power rate)
+  number::Number *power_limit_number_{nullptr};
 
   // Source sensors (input from external components like modbus_controller)
   sensor::Sensor *source_ac_power_{nullptr};
