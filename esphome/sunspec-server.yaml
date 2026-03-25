@@ -1,3 +1,4 @@
+# FOR LOCAL DEVELOPMENT ONLY - NOT PRODUCTION-READY
 # Growatt Inverter to SunSpec Bridge
 # Reads real data from Growatt inverter via Modbus RTU (RS485)
 # Exposes it via SunSpec-compliant Modbus TCP for Victron GX
