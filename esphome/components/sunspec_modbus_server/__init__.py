@@ -49,6 +49,8 @@ CONF_SOURCE_DC_VOLTAGE = "source_dc_voltage"
 CONF_SOURCE_DC_CURRENT = "source_dc_current"
 CONF_SOURCE_DC_POWER = "source_dc_power"
 CONF_SOURCE_TEMPERATURE = "source_temperature"
+CONF_SOURCE_PV2_VOLTAGE = "source_pv2_voltage"
+CONF_SOURCE_PV2_POWER = "source_pv2_power"
 
 # Output sensor configuration keys (publish to Home Assistant)
 CONF_AC_POWER = "ac_power"
@@ -97,6 +99,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_SOURCE_DC_CURRENT): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_SOURCE_DC_POWER): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_SOURCE_TEMPERATURE): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_PV2_VOLTAGE): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_SOURCE_PV2_POWER): cv.use_id(sensor.Sensor),
         # Output sensor configurations (publish to Home Assistant)
         cv.Optional(CONF_AC_POWER): sensor.sensor_schema(
             unit_of_measurement=UNIT_WATT,
@@ -265,6 +269,14 @@ async def to_code(config):
     if CONF_SOURCE_TEMPERATURE in config:
         sens = await cg.get_variable(config[CONF_SOURCE_TEMPERATURE])
         cg.add(var.set_source_temperature(sens))
+
+    if CONF_SOURCE_PV2_VOLTAGE in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_PV2_VOLTAGE])
+        cg.add(var.set_source_pv2_voltage(sens))
+
+    if CONF_SOURCE_PV2_POWER in config:
+        sens = await cg.get_variable(config[CONF_SOURCE_PV2_POWER])
+        cg.add(var.set_source_pv2_power(sens))
 
     # Register output sensors (publish to Home Assistant)
     if CONF_AC_POWER in config:

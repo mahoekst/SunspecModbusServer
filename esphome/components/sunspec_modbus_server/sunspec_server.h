@@ -48,15 +48,23 @@ static const uint16_t MODEL103_LENGTH_OFFSET = 98;
 static const uint16_t MODEL103_DATA_OFFSET = 99;
 static const uint16_t MODEL103_LENGTH = 50;
 
+// Model 160 (Multiple MPPT) — 8 global + 2 trackers * 20 = 48 data registers
+static const uint16_t MODEL160_ID_OFFSET = 149;
+static const uint16_t MODEL160_LENGTH_OFFSET = 150;
+static const uint16_t MODEL160_DATA_OFFSET = 151;
+static const uint16_t MODEL160_LENGTH = 48;
+static const uint16_t MODEL160_TRACKER_BASE = 8;    // data offset of first tracker block
+static const uint16_t MODEL160_TRACKER_STRIDE = 20; // registers per tracker block
+
 // Model 123 (Immediate Controls)
-static const uint16_t MODEL123_ID_OFFSET = 149;
-static const uint16_t MODEL123_LENGTH_OFFSET = 150;
-static const uint16_t MODEL123_DATA_OFFSET = 151;
+static const uint16_t MODEL123_ID_OFFSET = 199;
+static const uint16_t MODEL123_LENGTH_OFFSET = 200;
+static const uint16_t MODEL123_DATA_OFFSET = 201;
 static const uint16_t MODEL123_LENGTH = 24;
 
 // End marker and total
-static const uint16_t END_MODEL_OFFSET = 175;
-static const uint16_t TOTAL_REGISTERS = 177;
+static const uint16_t END_MODEL_OFFSET = 225;
+static const uint16_t TOTAL_REGISTERS = 227;
 
 // Model 120 register offsets (relative to MODEL120_DATA_OFFSET)
 namespace Model120 {
@@ -121,6 +129,24 @@ namespace Model103 {
   static const uint8_t St = 36;      // Operating State
   static const uint8_t StVnd = 37;   // Vendor Operating State
 }  // namespace Model103
+
+// Model 160 register offsets (relative to MODEL160_DATA_OFFSET)
+namespace Model160 {
+  static const uint8_t DCA_SF  = 0;   // Current scale factor (all trackers)
+  static const uint8_t DCV_SF  = 1;   // Voltage scale factor
+  static const uint8_t DCW_SF  = 2;   // Power scale factor
+  static const uint8_t DCWH_SF = 3;   // Energy scale factor
+  static const uint8_t Evt1    = 4;   // Global events (high word)
+  static const uint8_t Evt2    = 5;   // Global events (low word)
+  static const uint8_t N       = 6;   // Number of trackers
+  static const uint8_t TmsPer  = 7;   // Timestamp period
+  // Per-tracker block offsets (from start of tracker block, 20 regs each)
+  static const uint8_t T_ID    = 0;   // Tracker input ID
+  // T_IDStr occupies offsets 1-8 (8 registers)
+  static const uint8_t T_DCA   = 9;   // DC current
+  static const uint8_t T_DCV   = 10;  // DC voltage  ← Victron reads this
+  static const uint8_t T_DCW   = 11;  // DC power    ← Victron reads this
+}  // namespace Model160
 
 // Model 123 register offsets (relative to MODEL123_DATA_OFFSET)
 namespace Model123 {
@@ -203,6 +229,8 @@ class SunSpecModbusServer : public Component {
   void set_source_dc_current(sensor::Sensor *sensor) { this->source_dc_current_ = sensor; }
   void set_source_dc_power(sensor::Sensor *sensor) { this->source_dc_power_ = sensor; }
   void set_source_temperature(sensor::Sensor *sensor) { this->source_temperature_ = sensor; }
+  void set_source_pv2_voltage(sensor::Sensor *sensor) { this->source_pv2_voltage_ = sensor; }
+  void set_source_pv2_power(sensor::Sensor *sensor) { this->source_pv2_power_ = sensor; }
 
   // Power limit number setter (target for Growatt active power rate)
   void set_power_limit_number(number::Number *number) { this->power_limit_number_ = number; }
@@ -305,6 +333,8 @@ class SunSpecModbusServer : public Component {
   sensor::Sensor *source_dc_current_{nullptr};
   sensor::Sensor *source_dc_power_{nullptr};
   sensor::Sensor *source_temperature_{nullptr};
+  sensor::Sensor *source_pv2_voltage_{nullptr};
+  sensor::Sensor *source_pv2_power_{nullptr};
 };
 
 }  // namespace sunspec_modbus_server

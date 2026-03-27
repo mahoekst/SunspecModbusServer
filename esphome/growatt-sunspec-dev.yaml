@@ -141,13 +141,21 @@ sensor:
     pv1:
       voltage:
         id: growatt_dc_voltage
-        name: "Growatt DC Voltage"
+        name: "Growatt PV1 Voltage"
       current:
         id: growatt_dc_current
-        name: "Growatt DC Current"
+        name: "Growatt PV1 Current"
       active_power:
         id: growatt_dc_power
-        name: "Growatt DC Power"
+        name: "Growatt PV1 Power"
+
+    pv2:
+      voltage:
+        id: growatt_pv2_voltage
+        name: "Growatt PV2 Voltage"
+      active_power:
+        id: growatt_pv2_power
+        name: "Growatt PV2 Power"
 
     active_power:
       id: growatt_ac_power
@@ -204,6 +212,8 @@ sunspec_modbus_server:
   source_dc_current: growatt_dc_current
   source_dc_power: growatt_dc_power
   source_temperature: growatt_temperature
+  source_pv2_voltage: growatt_pv2_voltage
+  source_pv2_power: growatt_pv2_power
   target_power_limit: growatt_power_rate
 
 number:

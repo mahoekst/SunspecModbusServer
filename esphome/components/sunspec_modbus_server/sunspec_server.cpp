@@ -390,6 +390,27 @@ void SunSpecModbusServer::init_registers_() {
   // Initialize DC voltage (always present when connected)
   this->registers_[MODEL103_DATA_OFFSET + Model103::DCV] = 4500;  // 450.0V
 
+  // Model 160 (Multiple MPPT) Header
+  this->registers_[MODEL160_ID_OFFSET] = 160;
+  this->registers_[MODEL160_LENGTH_OFFSET] = MODEL160_LENGTH;
+
+  // Model 160 global scale factors
+  this->registers_[MODEL160_DATA_OFFSET + Model160::DCA_SF]  = (uint16_t)(int16_t)(-2);  // 0.01A
+  this->registers_[MODEL160_DATA_OFFSET + Model160::DCV_SF]  = (uint16_t)(int16_t)(-1);  // 0.1V
+  this->registers_[MODEL160_DATA_OFFSET + Model160::DCW_SF]  = 0;                         // 1W
+  this->registers_[MODEL160_DATA_OFFSET + Model160::DCWH_SF] = 0;
+  this->registers_[MODEL160_DATA_OFFSET + Model160::N]       = 2;  // PV1 + PV2
+
+  // Tracker 0 (PV1) ID and IDStr ("PV1")
+  uint16_t t0 = MODEL160_DATA_OFFSET + MODEL160_TRACKER_BASE + 0 * MODEL160_TRACKER_STRIDE;
+  this->registers_[t0 + Model160::T_ID] = 1;
+  this->write_string_(t0 + 1, "PV1", 16);  // IDStr: 8 registers
+
+  // Tracker 1 (PV2) ID and IDStr ("PV2")
+  uint16_t t1 = MODEL160_DATA_OFFSET + MODEL160_TRACKER_BASE + 1 * MODEL160_TRACKER_STRIDE;
+  this->registers_[t1 + Model160::T_ID] = 2;
+  this->write_string_(t1 + 1, "PV2", 16);  // IDStr: 8 registers
+
   // Model 123 (Immediate Controls) Header
   this->registers_[MODEL123_ID_OFFSET] = 123;
   this->registers_[MODEL123_LENGTH_OFFSET] = MODEL123_LENGTH;
@@ -457,6 +478,22 @@ void SunSpecModbusServer::update_registers_() {
 
   // Operating state
   this->registers_[MODEL103_DATA_OFFSET + Model103::St] = static_cast<uint16_t>(this->values_.state);
+
+  // Model 160 — tracker live data
+  // Tracker 0 (PV1) — reuse existing DC source values
+  uint16_t t0 = MODEL160_DATA_OFFSET + MODEL160_TRACKER_BASE + 0 * MODEL160_TRACKER_STRIDE;
+  this->registers_[t0 + Model160::T_DCA] = (uint16_t)(this->values_.dc_current * 100);
+  this->registers_[t0 + Model160::T_DCV] = (uint16_t)(this->values_.dc_voltage * 10);
+  this->registers_[t0 + Model160::T_DCW] = (uint16_t)this->values_.dc_power;
+
+  // Tracker 1 (PV2) — from optional PV2 source sensors
+  uint16_t t1 = MODEL160_DATA_OFFSET + MODEL160_TRACKER_BASE + 1 * MODEL160_TRACKER_STRIDE;
+  if (this->source_pv2_voltage_ != nullptr && this->source_pv2_voltage_->has_state()) {
+    this->registers_[t1 + Model160::T_DCV] = (uint16_t)(this->source_pv2_voltage_->state * 10);
+  }
+  if (this->source_pv2_power_ != nullptr && this->source_pv2_power_->has_state()) {
+    this->registers_[t1 + Model160::T_DCW] = (uint16_t)this->source_pv2_power_->state;
+  }
 }
 
 void SunSpecModbusServer::write_string_(uint16_t offset, const char *str, uint16_t max_len) {
