@@ -616,9 +616,10 @@ void SunSpecModbusServer::update_from_sources_() {
     this->values_.temperature = (int16_t)this->source_temperature_->state;
   }
 
-  // Set operating state based on power
+  // Set operating state based on power and active throttle
+  bool throttled = (this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLim_Ena] == 1);
   if (this->values_.ac_power > 0) {
-    this->values_.state = InverterState::MPPT;
+    this->values_.state = throttled ? InverterState::THROTTLED : InverterState::MPPT;
   } else {
     this->values_.state = InverterState::STANDBY;
   }
