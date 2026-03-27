@@ -321,6 +321,31 @@ void SunSpecModbusServer::init_registers_() {
   this->write_string_(MODEL1_DATA_OFFSET + 48, this->serial_.c_str(), 32);         // SN (offset 48-63)
   this->registers_[MODEL1_DATA_OFFSET + 64] = 1;                                   // DA (Device Address)
 
+  // Model 120 header (Nameplate Ratings)
+  this->registers_[MODEL120_ID_OFFSET] = 120;
+  this->registers_[MODEL120_LENGTH_OFFSET] = MODEL120_LENGTH;
+
+  // Model 120 data
+  this->registers_[MODEL120_DATA_OFFSET + Model120::DERTyp]   = 4;                  // PV device
+  this->registers_[MODEL120_DATA_OFFSET + Model120::WRtg]     = this->max_power_;   // Rated power (W)
+  this->registers_[MODEL120_DATA_OFFSET + Model120::WRtg_SF]  = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::VARtg]    = this->max_power_;   // Rated VA (same as W for unity PF)
+  this->registers_[MODEL120_DATA_OFFSET + Model120::VARtg_SF] = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::VArRtgQ1] = 0;                  // PV-only: no reactive power
+  this->registers_[MODEL120_DATA_OFFSET + Model120::VArRtgQ2] = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::VArRtgQ3] = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::VArRtgQ4] = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::VArRtg_SF] = 0;
+  // ARtg: max current sum of 3 phases = WRtg / (sqrt(3) * 400V) * 3
+  this->registers_[MODEL120_DATA_OFFSET + Model120::ARtg]     = (uint16_t)(this->max_power_ / 230.94f);
+  this->registers_[MODEL120_DATA_OFFSET + Model120::ARtg_SF]  = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::PFRtgQ1]  = (uint16_t)(int16_t)100;  // 1.00 with SF=-2
+  this->registers_[MODEL120_DATA_OFFSET + Model120::PFRtgQ2]  = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::PFRtgQ3]  = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::PFRtgQ4]  = 0;
+  this->registers_[MODEL120_DATA_OFFSET + Model120::PFRtg_SF] = (uint16_t)(int16_t)(-2);
+  // Optional storage fields (17-25) left as 0 — not applicable for PV
+
   // Model 103 header (Three-Phase Inverter)
   this->registers_[MODEL103_ID_OFFSET] = 103;       // Model ID
   this->registers_[MODEL103_LENGTH_OFFSET] = MODEL103_LENGTH;  // Length

@@ -12,6 +12,7 @@ substitutions:
   manufacturer: "Growatt"
   model: "9000 TL3-S"
   serial: "GROWATT001"
+  max_power: "9000"
 
 esphome:
   name: ${device_name}
@@ -184,6 +185,7 @@ sunspec_modbus_server:
   unit_id: 126
   manufacturer: ${manufacturer}
   model: ${model}
+  max_power: ${max_power}
   serial: ${serial}
   update_interval: 1s
 

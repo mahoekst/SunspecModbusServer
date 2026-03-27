@@ -36,20 +36,49 @@ static const uint16_t MODEL1_ID_OFFSET = 2;
 static const uint16_t MODEL1_LENGTH_OFFSET = 3;
 static const uint16_t MODEL1_DATA_OFFSET = 4;
 static const uint16_t MODEL1_LENGTH = 65;
-static const uint16_t MODEL103_ID_OFFSET = 69;
-static const uint16_t MODEL103_LENGTH_OFFSET = 70;
-static const uint16_t MODEL103_DATA_OFFSET = 71;
+
+// Model 120 (Nameplate Ratings) — inserted between Model 1 and Model 103
+static const uint16_t MODEL120_ID_OFFSET = 69;
+static const uint16_t MODEL120_LENGTH_OFFSET = 70;
+static const uint16_t MODEL120_DATA_OFFSET = 71;
+static const uint16_t MODEL120_LENGTH = 26;
+
+static const uint16_t MODEL103_ID_OFFSET = 97;
+static const uint16_t MODEL103_LENGTH_OFFSET = 98;
+static const uint16_t MODEL103_DATA_OFFSET = 99;
 static const uint16_t MODEL103_LENGTH = 50;
 
 // Model 123 (Immediate Controls)
-static const uint16_t MODEL123_ID_OFFSET = 121;
-static const uint16_t MODEL123_LENGTH_OFFSET = 122;
-static const uint16_t MODEL123_DATA_OFFSET = 123;
+static const uint16_t MODEL123_ID_OFFSET = 149;
+static const uint16_t MODEL123_LENGTH_OFFSET = 150;
+static const uint16_t MODEL123_DATA_OFFSET = 151;
 static const uint16_t MODEL123_LENGTH = 24;
 
-// Updated end marker and total
-static const uint16_t END_MODEL_OFFSET = 147;
-static const uint16_t TOTAL_REGISTERS = 149;
+// End marker and total
+static const uint16_t END_MODEL_OFFSET = 175;
+static const uint16_t TOTAL_REGISTERS = 177;
+
+// Model 120 register offsets (relative to MODEL120_DATA_OFFSET)
+namespace Model120 {
+  static const uint8_t DERTyp = 0;       // DER type (4 = PV)
+  static const uint8_t WRtg = 1;         // Continuous power rating (W)
+  static const uint8_t WRtg_SF = 2;      // Scale factor
+  static const uint8_t VARtg = 3;        // Continuous VA rating
+  static const uint8_t VARtg_SF = 4;     // Scale factor
+  static const uint8_t VArRtgQ1 = 5;     // VAr capability Q1
+  static const uint8_t VArRtgQ2 = 6;     // VAr capability Q2
+  static const uint8_t VArRtgQ3 = 7;     // VAr capability Q3
+  static const uint8_t VArRtgQ4 = 8;     // VAr capability Q4
+  static const uint8_t VArRtg_SF = 9;    // Scale factor
+  static const uint8_t ARtg = 10;        // Max RMS AC current (sum of phases)
+  static const uint8_t ARtg_SF = 11;     // Scale factor
+  static const uint8_t PFRtgQ1 = 12;     // Min power factor Q1
+  static const uint8_t PFRtgQ2 = 13;     // Min power factor Q2
+  static const uint8_t PFRtgQ3 = 14;     // Min power factor Q3
+  static const uint8_t PFRtgQ4 = 15;     // Min power factor Q4
+  static const uint8_t PFRtg_SF = 16;    // Scale factor
+  // 17-25: optional storage fields + pad (left as 0)
+}  // namespace Model120
 
 // Model 103 register offsets (relative to MODEL103_DATA_OFFSET)
 namespace Model103 {
@@ -157,6 +186,7 @@ class SunSpecModbusServer : public Component {
   void set_model(const std::string &model) { this->model_ = model; }
   void set_serial(const std::string &serial) { this->serial_ = serial; }
   void set_update_interval(uint32_t update_interval) { this->update_interval_ = update_interval; }
+  void set_max_power(uint16_t max_power) { this->max_power_ = max_power; }
 
   // Source sensor setters (input from external components like modbus_controller)
   void set_source_ac_power(sensor::Sensor *sensor) { this->source_ac_power_ = sensor; }
@@ -222,6 +252,7 @@ class SunSpecModbusServer : public Component {
   std::string model_{"9000 TL3-S"};
   std::string serial_{"EMULATED001"};
   uint32_t update_interval_{1000};
+  uint16_t max_power_{9000};
 
   // Server state
   WiFiServer *server_{nullptr};
