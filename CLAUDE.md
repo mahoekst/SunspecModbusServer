@@ -1,112 +1,92 @@
-# SunSpec Modbus TCP Server for ESP32
+# SunSpec Modbus TCP Server for ESP32 (ESPHome)
 
 ## Project Overview
-This is a PlatformIO project for ESP32 that implements a SunSpec-compliant Modbus TCP server. It's designed to emulate a Growatt 9000 TL3-S three-phase inverter for integration testing with Victron GX systems.
+This is an ESPHome custom component that implements a SunSpec-compliant Modbus TCP server. It reads real inverter data from a Growatt 9000 TL3-S three-phase inverter via RS485/Modbus RTU, then exposes it via SunSpec Modbus TCP for integration with Victron GX systems. It also publishes all values to Home Assistant.
 
-### Project Phases
-- **Phase 1 (current):** SunSpec Modbus TCP server with simulated inverter values
-- **Phase 2 (future):** Add RS485/Modbus RTU client to read actual Growatt inverter data
+**Hardware:** LilyGo T-CAN485 ESP32 board
 
 ## Quick Start
 
-### Build
+### Validate config
 ```bash
-pio run
+cd esphome
+esphome config growatt-sunspec-dev.yaml
+```
+
+### Build (local dev)
+```bash
+cd esphome
+esphome compile growatt-sunspec-dev.yaml > /tmp/build.log 2>&1 &
+tail -f /tmp/build.log
 ```
 
 ### Upload to ESP32
 ```bash
-pio run -t upload
+cd esphome
+esphome upload growatt-sunspec-dev.yaml
 ```
 
 ### Monitor Serial Output
 ```bash
-pio device monitor
+cd esphome
+esphome logs growatt-sunspec-dev.yaml
 ```
 
-### WiFi Setup
-1. On first boot, ESP32 creates AP "SunSpec-Setup"
-2. Connect to this AP and configure your WiFi credentials
-3. ESP32 will connect and display its IP address
-
-## Architecture
-
-### File Structure
+## File Structure
 ```
-src/
-├── main.cpp           # Entry point, orchestrates components
-├── config.h           # All configuration constants
-├── wifi_manager.h/cpp # WiFiManager wrapper for captive portal
-├── sunspec_model.h/cpp# SunSpec register definitions (Model 1 + 103)
-├── simulator.h/cpp    # Generates realistic inverter data
-└── modbus_server.h/cpp# Modbus TCP server wrapper
+esphome/
+├── growatt-sunspec.yaml      # Production config (used in Home Assistant, pulls component from GitHub)
+├── growatt-sunspec-dev.yaml  # Local dev config (uses local component source)
+├── secrets.yaml              # WiFi/API credentials (not committed)
+├── secrets.yaml.example      # Template for secrets.yaml
+└── components/
+    └── sunspec_modbus_server/
+        ├── __init__.py       # ESPHome component config schema & codegen
+        ├── sunspec_server.h  # C++ class definition
+        └── sunspec_server.cpp# C++ implementation
 ```
 
-### Component Responsibilities
-- **WiFiSetup**: Handles WiFi connection with captive portal fallback
-- **SunSpecModel**: Manages SunSpec register layout and data mapping
-- **Simulator**: Generates time-varying realistic inverter values
-- **ModbusServer**: Wraps ModbusIP library, maps registers
+## Component Configuration
 
-## SunSpec Implementation
+The `sunspec_modbus_server` component accepts the following options:
 
-### Register Layout (Base: 40000)
+| Option | Default | Description |
+|--------|---------|-------------|
+| `port` | 502 | Modbus TCP port |
+| `unit_id` | 1 | Modbus unit/slave ID |
+| `manufacturer` | "Growatt" | SunSpec Model 1 manufacturer string |
+| `model` | "9000 TL3-S" | SunSpec Model 1 model string |
+| `serial` | "EMULATED001" | SunSpec Model 1 serial string |
+| `update_interval` | 1s | How often registers are refreshed |
+| `source_*` | — | Input sensor IDs from modbus_controller/growatt_solar |
+| `target_power_limit` | — | Number entity ID to receive power limit commands from Victron |
+
+## SunSpec Register Layout (Base: 40000)
 | Offset | Content |
 |--------|---------|
 | 0-1 | SunSpec ID "SunS" |
 | 2-3 | Model 1 header |
-| 4-69 | Model 1 (Common) data |
-| 70-71 | Model 103 header |
-| 72-121 | Model 103 (Three-Phase Inverter) data |
-| 122-123 | End marker |
+| 4-68 | Model 1 (Common) data |
+| 69-70 | Model 103 header |
+| 71-120 | Model 103 (Three-Phase Inverter) data |
+| 121-122 | Model 123 header |
+| 123-146 | Model 123 (Immediate Controls) — power limit via Victron |
+| 147-148 | End marker |
 
-### Model 1 (Common)
-Contains manufacturer info: "Growatt", model: "9000 TL3-S", serial: "EMULATED001"
+### Model 103 — Three-Phase Inverter
+AC power, current (A/B/C), voltage (A/B/C), frequency, power factor, total energy, DC voltage/current/power, temperature, operating state.
 
-### Model 103 (Three-Phase Inverter)
-Contains AC power, current, voltage, frequency, power factor, energy, DC values, temperature, and operating state.
+### Model 123 — Immediate Controls
+Allows Victron GX to write a power limit (`WMaxLimPct` + `WMaxLim_Ena`). The component forwards this to the configured `target_power_limit` number entity, which writes it to the Growatt inverter via Modbus RTU register 3.
 
-## Simulation Mode
-- Power follows a sine wave (0-9000W) cycling every 60 seconds
-- Realistic noise on all measurements
-- Balanced three-phase currents with slight imbalance
-- Energy accumulation over time
-- Temperature varies with power output
+## Development Workflow
 
-## Testing
-
-### With Modbus Tools
-Connect to `<ESP32_IP>:502` and read holding registers starting at 40000:
-- Registers 0-1: Should show 0x5375 0x6E53 ("SunS")
-- Register 2: Should show 1 (Model 1 ID)
-- Register 70: Should show 103 (Model 103 ID)
-
-### With Victron GX
-1. Settings → Modbus TCP → Add device
-2. IP: ESP32's IP, Port: 502, Unit ID: 1
-3. Device should appear as "PV Inverter"
-
-## Configuration (config.h)
-| Constant | Default | Description |
-|----------|---------|-------------|
-| WIFI_AP_NAME | "SunSpec-Setup" | Captive portal AP name |
-| MODBUS_TCP_PORT | 502 | Modbus TCP port |
-| SUNSPEC_BASE_ADDRESS | 40000 | SunSpec register base |
-| INVERTER_MAX_POWER | 9000 | Max power in watts |
-| SIMULATION_UPDATE_MS | 1000 | Update interval |
-
-## Dependencies
-- `emelianov/modbus-esp8266` - Modbus TCP/RTU library
-- `tzapu/WiFiManager` - WiFi captive portal
-- ESP32 Arduino Core (via espressif32 platform)
+- Edit component files in `esphome/components/sunspec_modbus_server/`
+- Test locally using `growatt-sunspec-dev.yaml` (local path source)
+- When ready, commit and push — `growatt-sunspec.yaml` (used in HA) pulls from GitHub `main`
 
 ## Development Guidelines
 - Always check that suggested APIs/methods are not deprecated before using them
-- Verify compatibility with the current ESP32 Arduino Core and ESP-IDF versions
-- Avoid using deprecated functions even if they still work - use the recommended replacements
-
-## Future Work (Phase 2)
-- Add Modbus RTU client for RS485 communication
-- Read actual values from Growatt inverter
-- Support for LilyGo ESP32 RS485 board
-- Configurable inverter model parameters
+- Verify compatibility with the current ESPHome version (currently 2026.1.0)
+- Avoid using deprecated functions — use recommended replacements
+- Run `esphome compile` in the background with log redirection; it takes several minutes

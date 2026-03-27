@@ -26,7 +26,8 @@
       "Bash(python:*)",
       "Bash(esphome upload:*)",
       "Bash(py -m esphome run:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(grep -li \"platformio\\\\|pio run\\\\|WiFiManager\\\\|src/\" \"e:/repos/SunspecModbusServer/docs/\"*.md)"
     ]
   }
 }
