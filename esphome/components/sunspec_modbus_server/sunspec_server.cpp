@@ -53,6 +53,19 @@ void SunSpecModbusServer::loop() {
     this->last_update_ = now;
   }
 
+  // Check revert timer: restore full power if Victron stops sending commands
+  if (this->revert_active_ && (now - this->revert_deadline_) < 0x80000000U) {
+    this->revert_active_ = false;
+    this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLim_Ena] = 0;
+    this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct] = 100;
+    if (this->power_limit_number_ != nullptr) {
+      ESP_LOGW(TAG, "Revert timer expired — restoring full power (100%%)");
+      auto call = this->power_limit_number_->make_call();
+      call.set_value(100.0f);
+      call.perform();
+    }
+  }
+
   // Handle Modbus TCP clients
   this->handle_client_();
 }
@@ -283,6 +296,7 @@ void SunSpecModbusServer::process_write_(uint16_t reg_start, uint16_t reg_count)
   // Model 123 WMaxLimPct / WMaxLim_Ena control
   uint16_t ena = this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLim_Ena];
   uint16_t pct_raw = this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct];
+  uint16_t rvrt_tms = this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct_RvrtTms];
   int16_t sf = (int16_t)this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLimPct_SF];
 
   // Apply scale factor: value * 10^sf
@@ -294,6 +308,15 @@ void SunSpecModbusServer::process_write_(uint16_t reg_start, uint16_t reg_count)
   }
   if (pct < 0.0f) pct = 0.0f;
   if (pct > 100.0f) pct = 100.0f;
+
+  // Arm or disarm the revert timer
+  if (ena == 1 && rvrt_tms > 0) {
+    this->revert_active_ = true;
+    this->revert_deadline_ = millis() + ((uint32_t)rvrt_tms * 1000);
+    ESP_LOGD(TAG, "Revert timer armed: %u seconds", rvrt_tms);
+  } else {
+    this->revert_active_ = false;
+  }
 
   if (this->power_limit_number_ != nullptr) {
     float target = (ena == 1) ? pct : 100.0f;  // Disabled = restore full power

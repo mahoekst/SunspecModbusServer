@@ -259,6 +259,10 @@ class SunSpecModbusServer : public Component {
   WiFiClient client_;
   bool client_connected_{false};
 
+  // Revert timer: restores full power if Victron stops sending commands
+  bool revert_active_{false};
+  uint32_t revert_deadline_{0};
+
   // SunSpec registers
   uint16_t registers_[TOTAL_REGISTERS];
 
