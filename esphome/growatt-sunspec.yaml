@@ -12,6 +12,7 @@ substitutions:
   manufacturer: "Growatt"
   model: "9000 TL3-S"
   serial: "GROWATT001"
+  version: "dhaa0/dhaa1413"
   max_power: "9000"
 
 esphome:
@@ -193,8 +194,9 @@ sunspec_modbus_server:
   unit_id: 126
   manufacturer: ${manufacturer}
   model: ${model}
-  max_power: ${max_power}
   serial: ${serial}
+  version: ${version}
+  max_power: ${max_power}
   update_interval: 1s
 
   # Source sensors from Growatt

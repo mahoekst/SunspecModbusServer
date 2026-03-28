@@ -216,6 +216,7 @@ class SunSpecModbusServer : public Component {
   void set_manufacturer(const std::string &manufacturer) { this->manufacturer_ = manufacturer; }
   void set_model(const std::string &model) { this->model_ = model; }
   void set_serial(const std::string &serial) { this->serial_ = serial; }
+  void set_version(const std::string &version) { this->version_ = version; }
   void set_update_interval(uint32_t update_interval) { this->update_interval_ = update_interval; }
   void set_max_power(uint16_t max_power) { this->max_power_ = max_power; }
 
@@ -284,6 +285,7 @@ class SunSpecModbusServer : public Component {
   std::string manufacturer_{"Growatt"};
   std::string model_{"9000 TL3-S"};
   std::string serial_{"EMULATED001"};
+  std::string version_{"1.0.0"};
   uint32_t update_interval_{1000};
   uint16_t max_power_{9000};
 

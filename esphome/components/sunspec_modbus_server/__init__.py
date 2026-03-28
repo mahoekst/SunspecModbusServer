@@ -32,6 +32,7 @@ CONF_TARGET_POWER_LIMIT = "target_power_limit"
 CONF_MANUFACTURER = "manufacturer"
 CONF_MODEL = "model"
 CONF_SERIAL = "serial"
+CONF_VERSION = "version"
 CONF_MAX_POWER = "max_power"
 
 # Source sensor configuration keys (input from external sensors like modbus_controller)
@@ -82,6 +83,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_MANUFACTURER, default="Growatt"): cv.string,
         cv.Optional(CONF_MODEL, default="9000 TL3-S"): cv.string,
         cv.Optional(CONF_SERIAL, default="EMULATED001"): cv.string,
+        cv.Optional(CONF_VERSION, default="1.0.0"): cv.string,
         cv.Optional(CONF_MAX_POWER, default=9000): cv.int_range(min=1, max=65535),
         cv.Optional(CONF_UPDATE_INTERVAL, default="1s"): cv.update_interval,
         # Source sensors (input from external components like modbus_controller)
@@ -210,6 +212,7 @@ async def to_code(config):
     cg.add(var.set_manufacturer(config[CONF_MANUFACTURER]))
     cg.add(var.set_model(config[CONF_MODEL]))
     cg.add(var.set_serial(config[CONF_SERIAL]))
+    cg.add(var.set_version(config[CONF_VERSION]))
     cg.add(var.set_max_power(config[CONF_MAX_POWER]))
     cg.add(var.set_update_interval(config[CONF_UPDATE_INTERVAL]))
 

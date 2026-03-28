@@ -340,7 +340,7 @@ void SunSpecModbusServer::init_registers_() {
   this->write_string_(MODEL1_DATA_OFFSET + 0, this->manufacturer_.c_str(), 32);   // Mn (offset 0-15)
   this->write_string_(MODEL1_DATA_OFFSET + 16, this->model_.c_str(), 32);          // Md (offset 16-31)
   this->write_string_(MODEL1_DATA_OFFSET + 32, "", 16);                            // Opt (offset 32-39)
-  this->write_string_(MODEL1_DATA_OFFSET + 40, "1.0.0", 16);                       // Vr (offset 40-47)
+  this->write_string_(MODEL1_DATA_OFFSET + 40, this->version_.c_str(), 16);         // Vr (offset 40-47)
   this->write_string_(MODEL1_DATA_OFFSET + 48, this->serial_.c_str(), 32);         // SN (offset 48-63)
   this->registers_[MODEL1_DATA_OFFSET + 64] = 1;                                   // DA (Device Address)
 
