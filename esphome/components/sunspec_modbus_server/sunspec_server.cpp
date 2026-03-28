@@ -491,6 +491,9 @@ void SunSpecModbusServer::update_registers_() {
   if (this->source_pv2_voltage_ != nullptr && this->source_pv2_voltage_->has_state()) {
     this->registers_[t1 + Model160::T_DCV] = (uint16_t)(this->source_pv2_voltage_->state * 10);
   }
+  if (this->source_pv2_current_ != nullptr && this->source_pv2_current_->has_state()) {
+    this->registers_[t1 + Model160::T_DCA] = (uint16_t)(this->source_pv2_current_->state * 100);
+  }
   if (this->source_pv2_power_ != nullptr && this->source_pv2_power_->has_state()) {
     this->registers_[t1 + Model160::T_DCW] = (uint16_t)this->source_pv2_power_->state;
   }

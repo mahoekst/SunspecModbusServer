@@ -236,6 +236,7 @@ class SunSpecModbusServer : public Component {
   void set_source_dc_power(sensor::Sensor *sensor) { this->source_dc_power_ = sensor; }
   void set_source_temperature(sensor::Sensor *sensor) { this->source_temperature_ = sensor; }
   void set_source_pv2_voltage(sensor::Sensor *sensor) { this->source_pv2_voltage_ = sensor; }
+  void set_source_pv2_current(sensor::Sensor *sensor) { this->source_pv2_current_ = sensor; }
   void set_source_pv2_power(sensor::Sensor *sensor) { this->source_pv2_power_ = sensor; }
 
   // Power limit number setter (target for Growatt active power rate)
@@ -341,6 +342,7 @@ class SunSpecModbusServer : public Component {
   sensor::Sensor *source_dc_power_{nullptr};
   sensor::Sensor *source_temperature_{nullptr};
   sensor::Sensor *source_pv2_voltage_{nullptr};
+  sensor::Sensor *source_pv2_current_{nullptr};
   sensor::Sensor *source_pv2_power_{nullptr};
 };
 

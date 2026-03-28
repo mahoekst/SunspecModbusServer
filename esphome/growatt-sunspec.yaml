@@ -12,7 +12,7 @@ substitutions:
   manufacturer: "Growatt"
   model: "9000 TL3-S"
   serial: "GROWATT001"
-  version: "dhaa0/dhaa1413"
+  version: "1.0.0"
   max_power: "9000"
 
 esphome:
@@ -153,6 +153,9 @@ sensor:
       voltage:
         id: growatt_pv2_voltage
         name: "Growatt PV2 Voltage"
+      current:
+        id: growatt_pv2_current
+        name: "Growatt PV2 Current"        
       active_power:
         id: growatt_pv2_power
         name: "Growatt PV2 Power"
@@ -214,6 +217,7 @@ sunspec_modbus_server:
   source_dc_power: growatt_dc_power
   source_temperature: growatt_temperature
   source_pv2_voltage: growatt_pv2_voltage
+  source_pv2_current: growatt_pv2_current
   source_pv2_power: growatt_pv2_power
   target_power_limit: growatt_power_rate
 
