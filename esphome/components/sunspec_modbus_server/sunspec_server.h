@@ -150,25 +150,30 @@ namespace Model160 {
 
 // Model 123 register offsets (relative to MODEL123_DATA_OFFSET)
 namespace Model123 {
-  static const uint8_t WMaxLimPct = 0;        // Max power output %
-  static const uint8_t WMaxLimPct_WinTms = 1;
-  static const uint8_t WMaxLimPct_RvrtTms = 2;
-  static const uint8_t WMaxLimPct_RmpTms = 3;
-  static const uint8_t WMaxLim_Ena = 4;        // 0=disabled, 1=enabled
-  static const uint8_t OutPFSet = 5;
-  static const uint8_t OutPFSet_WinTms = 6;
-  static const uint8_t OutPFSet_RvrtTms = 7;
-  static const uint8_t OutPFSet_RmpTms = 8;
-  static const uint8_t OutPFSet_Ena = 9;
-  static const uint8_t VArPct_Mod = 10;
-  static const uint8_t VArPct_WinTms = 11;
-  static const uint8_t VArPct_RvrtTms = 12;
-  static const uint8_t VArPct_RmpTms = 13;
-  static const uint8_t VArSetPct = 14;
-  static const uint8_t VArSetPct_Ena = 15;
-  static const uint8_t WMaxLimPct_SF = 16;     // Scale factor (we set to 0)
-  static const uint8_t OutPFSet_SF = 17;
-  // 18-23: padding
+  // Connection controls (3 registers before power limit fields)
+  static const uint8_t Conn_WinTms = 0;        // Time to connect (s)
+  static const uint8_t Conn_RvrtTms = 1;       // Time to revert connection (s)
+  static const uint8_t Conn = 2;               // Connect/disconnect (1=connect)
+  // Power limit controls — Victron writes at immediateControlOffset+5 = data[3]
+  static const uint8_t WMaxLimPct = 3;         // Max power output %
+  static const uint8_t WMaxLimPct_WinTms = 4;
+  static const uint8_t WMaxLimPct_RvrtTms = 5;
+  static const uint8_t WMaxLimPct_RmpTms = 6;
+  static const uint8_t WMaxLim_Ena = 7;        // 0=disabled, 1=enabled
+  static const uint8_t OutPFSet = 8;
+  static const uint8_t OutPFSet_WinTms = 9;
+  static const uint8_t OutPFSet_RvrtTms = 10;
+  static const uint8_t OutPFSet_RmpTms = 11;
+  static const uint8_t OutPFSet_Ena = 12;
+  static const uint8_t VArPct_Mod = 13;
+  static const uint8_t VArPct_WinTms = 14;
+  static const uint8_t VArPct_RvrtTms = 15;
+  static const uint8_t VArPct_RmpTms = 16;
+  static const uint8_t VArSetPct = 17;
+  static const uint8_t VArSetPct_Ena = 18;
+  static const uint8_t WMaxLimPct_SF = 19;     // Scale factor (we set to 0)
+  static const uint8_t OutPFSet_SF = 20;
+  // 21-23: padding
 }  // namespace Model123
 
 // Inverter values (from source sensors)
