@@ -26,6 +26,8 @@ esp32:
 
 logger:
   level: INFO
+  logs:
+    modbus_controller: ERROR
 
 # Enable Home Assistant API
 api:
