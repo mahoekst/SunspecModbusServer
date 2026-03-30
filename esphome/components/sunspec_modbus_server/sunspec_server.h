@@ -294,6 +294,8 @@ class SunSpecModbusServer : public Component {
   WiFiServer *server_{nullptr};
   WiFiClient client_;
   bool client_connected_{false};
+  uint32_t last_rx_ms_{0};
+  static const uint32_t CLIENT_TIMEOUT_MS = 30000;  // 30 s without data → force disconnect
 
   // Revert timer: restores full power if Victron stops sending commands
   bool revert_active_{false};

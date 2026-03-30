@@ -83,10 +83,17 @@ void SunSpecModbusServer::dump_config() {
 void SunSpecModbusServer::start_server_() {
   this->server_ = new WiFiServer(this->port_);
   this->server_->begin();
+  if (!this->server_) {
+    ESP_LOGE(TAG, "Failed to start Modbus TCP server on port %u", this->port_);
+    this->mark_failed();
+    return;
+  }
   ESP_LOGI(TAG, "Modbus TCP server started on port %u", this->port_);
 }
 
 void SunSpecModbusServer::handle_client_() {
+  uint32_t now = millis();
+
   // Check for new client
   if (this->server_->hasClient()) {
     if (this->client_connected_) {
@@ -97,15 +104,24 @@ void SunSpecModbusServer::handle_client_() {
     } else {
       this->client_ = this->server_->accept();
       this->client_connected_ = true;
+      this->last_rx_ms_ = now;
       ESP_LOGI(TAG, "Client connected from %s", this->client_.remoteIP().toString().c_str());
     }
   }
 
   // Handle existing client
   if (this->client_connected_) {
-    if (!this->client_.connected()) {
+    // Stale connection timeout: force-close if no data received for CLIENT_TIMEOUT_MS
+    bool timed_out = (now - this->last_rx_ms_) >= CLIENT_TIMEOUT_MS;
+
+    if (!this->client_.connected() || timed_out) {
+      if (timed_out) {
+        ESP_LOGW(TAG, "Client timeout — forcing disconnect");
+      } else {
+        ESP_LOGI(TAG, "Client disconnected");
+      }
+      this->client_.stop();
       this->client_connected_ = false;
-      ESP_LOGI(TAG, "Client disconnected");
       return;
     }
 
@@ -114,6 +130,7 @@ void SunSpecModbusServer::handle_client_() {
       uint8_t buffer[256];
       size_t len = this->client_.read(buffer, sizeof(buffer));
       if (len >= MIN_REQUEST_SIZE) {
+        this->last_rx_ms_ = now;
         this->process_request_(this->client_, buffer, len);
       }
     }
@@ -130,7 +147,7 @@ void SunSpecModbusServer::process_request_(WiFiClient &client, uint8_t *buffer, 
   uint16_t start_addr = (buffer[8] << 8) | buffer[9];
   uint16_t quantity = (buffer[10] << 8) | buffer[11];
 
-  ESP_LOGI(TAG, "Request: Unit=%u, FC=%u, Addr=%u, Qty=%u", unit_id, function_code, start_addr, quantity);
+  ESP_LOGD(TAG, "Request: Unit=%u, FC=%u, Addr=%u, Qty=%u", unit_id, function_code, start_addr, quantity);
 
   // Check unit ID
   if (unit_id != this->unit_id_ && unit_id != 0) {
@@ -179,8 +196,10 @@ void SunSpecModbusServer::process_request_(WiFiClient &client, uint8_t *buffer, 
 }
 
 void SunSpecModbusServer::send_response_(WiFiClient &client, uint8_t *request, uint16_t start_addr, uint16_t reg_count) {
-  // Build response
-  uint8_t response[256];
+  // Build response — Modbus FC03 max is 125 registers (250 bytes data + 9 header = 259 bytes)
+  static const uint16_t MAX_REGISTERS_PER_READ = 125;
+  if (reg_count > MAX_REGISTERS_PER_READ) reg_count = MAX_REGISTERS_PER_READ;
+  uint8_t response[9 + MAX_REGISTERS_PER_READ * 2];
   size_t response_len = MBAP_HEADER_SIZE + 2 + (reg_count * 2);
 
   // Copy MBAP header (transaction ID, protocol ID)
@@ -208,7 +227,7 @@ void SunSpecModbusServer::send_response_(WiFiClient &client, uint8_t *request, u
   }
 
   client.write(response, response_len);
-  ESP_LOGI(TAG, "Sent %u registers starting at %u", reg_count, start_addr);
+  ESP_LOGD(TAG, "Sent %u registers starting at %u", reg_count, start_addr);
 }
 
 void SunSpecModbusServer::send_error_(WiFiClient &client, uint8_t *request, uint8_t error_code) {
@@ -251,7 +270,7 @@ void SunSpecModbusServer::handle_write_single_(WiFiClient &client, uint8_t *buff
 
   // Echo the request as response (FC06 standard)
   client.write(buffer, 12);
-  ESP_LOGI(TAG, "Write single reg %u = %u", reg_idx, value);
+  ESP_LOGD(TAG, "Write single reg %u = %u", reg_idx, value);
 }
 
 void SunSpecModbusServer::handle_write_multiple_(WiFiClient &client, uint8_t *buffer, size_t len) {
@@ -285,7 +304,7 @@ void SunSpecModbusServer::handle_write_multiple_(WiFiClient &client, uint8_t *bu
   response[10] = buffer[10]; // Quantity hi
   response[11] = buffer[11]; // Quantity lo
   client.write(response, 12);
-  ESP_LOGI(TAG, "Write multiple %u regs starting at %u", quantity, reg_idx);
+  ESP_LOGD(TAG, "Write multiple %u regs starting at %u", quantity, reg_idx);
 }
 
 void SunSpecModbusServer::process_write_(uint16_t reg_start, uint16_t reg_count) {
@@ -504,8 +523,8 @@ void SunSpecModbusServer::write_string_(uint16_t offset, const char *str, uint16
   uint16_t reg_count = max_len / 2;
 
   for (uint16_t i = 0; i < reg_count; i++) {
-    uint8_t high_byte = (i * 2 < str_len) ? str[i * 2] : ' ';
-    uint8_t low_byte = (i * 2 + 1 < str_len) ? str[i * 2 + 1] : ' ';
+    uint8_t high_byte = (i * 2 < str_len) ? (uint8_t)str[i * 2] : 0;
+    uint8_t low_byte = (i * 2 + 1 < str_len) ? (uint8_t)str[i * 2 + 1] : 0;
     this->registers_[offset + i] = (high_byte << 8) | low_byte;
   }
 }
