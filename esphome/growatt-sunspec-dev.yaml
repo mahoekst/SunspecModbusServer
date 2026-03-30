@@ -108,7 +108,7 @@ modbus_controller:
   modbus_id: modbus_growatt
   address: 1
   setup_priority: -10
-  update_interval: never
+  update_interval: 30s
   command_throttle: 500ms
 
 # Local development: use component from local path instead of GitHub

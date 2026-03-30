@@ -11,8 +11,8 @@ substitutions:
   friendly_name: Growatt SunSpec Bridge
   manufacturer: "Growatt"
   model: "9000 TL3-S"
-  serial: "GROWATT001"
-  version: "1.0.0"
+  serial: "EGE3A2400J"
+  version: "dhaa0/dhaa1413"
   max_power: "9000"
 
 esphome:
@@ -105,7 +105,7 @@ modbus_controller:
   modbus_id: modbus_growatt
   address: 1
   setup_priority: -10
-  update_interval: never
+  update_interval: 30s
   command_throttle: 500ms
 
 # External component from GitHub
