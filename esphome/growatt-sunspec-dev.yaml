@@ -21,6 +21,10 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  on_boot:
+    priority: -200  # After WiFi and modbus are up
+    then:
+      - modbus_controller.force_update: growatt_controller
 
 esp32:
   board: esp32dev
@@ -110,7 +114,7 @@ modbus_controller:
   modbus_id: modbus_growatt
   address: 1
   setup_priority: -10
-  update_interval: 30s
+  update_interval: never
   command_throttle: 500ms
 
 # Local development: use component from local path instead of GitHub
