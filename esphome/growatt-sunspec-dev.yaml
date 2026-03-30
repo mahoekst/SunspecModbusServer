@@ -319,7 +319,7 @@ text_sensor:
   - platform: template
     name: "${friendly_name} Build Time"
     lambda: return {__DATE__ " " __TIME__};
-    update_interval: never
+    update_interval: 1h
     entity_category: diagnostic
     icon: mdi:clock-outline
     web_server:
