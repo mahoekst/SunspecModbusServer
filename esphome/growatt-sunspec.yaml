@@ -21,7 +21,7 @@ esphome:
   on_boot:
     priority: -200  # After WiFi and modbus are up
     then:
-      - modbus_controller.force_update: growatt_controller
+      - component.update: growatt_controller
 
 esp32:
   board: esp32dev
