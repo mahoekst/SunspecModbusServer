@@ -26,6 +26,14 @@ static const uint8_t EX_SERVER_DEVICE_FAILURE = 0x04;
 static const size_t MBAP_HEADER_SIZE = 7;
 static const size_t MIN_REQUEST_SIZE = 12;  // MBAP + Unit ID + FC + Start Addr + Quantity
 
+// Clamp a float to a valid uint16_t register value.
+// Returns 0 for NaN, negative, or subnormal; 65535 for Inf or overflow.
+static inline uint16_t safe_u16(float v) {
+  if (!std::isfinite(v) || v < 0.0f) return 0;
+  if (v > 65535.0f) return 65535;
+  return static_cast<uint16_t>(v);
+}
+
 SunSpecModbusServer::SunSpecModbusServer() {
   memset(this->registers_, 0, sizeof(this->registers_));
 }
@@ -82,12 +90,12 @@ void SunSpecModbusServer::dump_config() {
 
 void SunSpecModbusServer::start_server_() {
   this->server_ = new WiFiServer(this->port_);
-  this->server_->begin();
   if (!this->server_) {
-    ESP_LOGE(TAG, "Failed to start Modbus TCP server on port %u", this->port_);
+    ESP_LOGE(TAG, "Failed to allocate WiFiServer on port %u", this->port_);
     this->mark_failed();
     return;
   }
+  this->server_->begin();
   ESP_LOGI(TAG, "Modbus TCP server started on port %u", this->port_);
 }
 
@@ -140,9 +148,15 @@ void SunSpecModbusServer::handle_client_() {
 void SunSpecModbusServer::process_request_(WiFiClient &client, uint8_t *buffer, size_t len) {
   // Parse MBAP header
   // uint16_t transaction_id = (buffer[0] << 8) | buffer[1];
-  // uint16_t protocol_id = (buffer[2] << 8) | buffer[3];
+  uint16_t protocol_id = (buffer[2] << 8) | buffer[3];
   // uint16_t length = (buffer[4] << 8) | buffer[5];
   uint8_t unit_id = buffer[6];
+
+  // Modbus TCP protocol_id must always be 0x0000
+  if (protocol_id != 0) {
+    ESP_LOGW(TAG, "Ignoring non-Modbus frame (protocol_id=0x%04X)", protocol_id);
+    return;
+  }
   uint8_t function_code = buffer[7];
   uint16_t start_addr = (buffer[8] << 8) | buffer[9];
   uint16_t quantity = (buffer[10] << 8) | buffer[11];
@@ -285,12 +299,14 @@ void SunSpecModbusServer::handle_write_multiple_(WiFiClient &client, uint8_t *bu
     return;
   }
 
-  // Write register values
+  // Write register values — track actual count in case buffer is shorter than declared quantity
+  uint16_t written = 0;
   for (uint16_t i = 0; i < quantity && (size_t)(13 + i * 2 + 1) < len; i++) {
     uint16_t value = (buffer[13 + i * 2] << 8) | buffer[14 + i * 2];
     this->registers_[reg_idx + i] = value;
+    written++;
   }
-  this->process_write_(reg_idx, quantity);
+  this->process_write_(reg_idx, written);
 
   // Send FC16 response: MBAP + unit + FC + start_addr + quantity
   uint8_t response[12];
@@ -453,47 +469,49 @@ void SunSpecModbusServer::update_registers_() {
   // Update Model 103 registers with current simulated values
 
   // AC Current (scale factor -2, so multiply by 100)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::A] = (uint16_t)(this->values_.ac_current_total * 100);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::AphA] = (uint16_t)(this->values_.ac_current_a * 100);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::AphB] = (uint16_t)(this->values_.ac_current_b * 100);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::AphC] = (uint16_t)(this->values_.ac_current_c * 100);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::A]    = safe_u16(this->values_.ac_current_total * 100);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::AphA] = safe_u16(this->values_.ac_current_a * 100);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::AphB] = safe_u16(this->values_.ac_current_b * 100);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::AphC] = safe_u16(this->values_.ac_current_c * 100);
 
   // Line voltages (phase-to-phase, scale factor -1, multiply by 10)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::PPVphAB] = (uint16_t)(this->values_.line_voltage_ab * 10);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::PPVphBC] = (uint16_t)(this->values_.line_voltage_bc * 10);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::PPVphCA] = (uint16_t)(this->values_.line_voltage_ca * 10);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::PPVphAB] = safe_u16(this->values_.line_voltage_ab * 10);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::PPVphBC] = safe_u16(this->values_.line_voltage_bc * 10);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::PPVphCA] = safe_u16(this->values_.line_voltage_ca * 10);
 
   // Phase voltages (phase-to-neutral, scale factor -1, multiply by 10)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::PhVphA] = (uint16_t)(this->values_.ac_voltage_a * 10);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::PhVphB] = (uint16_t)(this->values_.ac_voltage_b * 10);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::PhVphC] = (uint16_t)(this->values_.ac_voltage_c * 10);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::PhVphA] = safe_u16(this->values_.ac_voltage_a * 10);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::PhVphB] = safe_u16(this->values_.ac_voltage_b * 10);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::PhVphC] = safe_u16(this->values_.ac_voltage_c * 10);
 
   // AC Power (scale factor 0)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::W] = (uint16_t)this->values_.ac_power;
+  this->registers_[MODEL103_DATA_OFFSET + Model103::W] = safe_u16(this->values_.ac_power);
 
   // Frequency (scale factor -2, multiply by 100)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::Hz] = (uint16_t)(this->values_.frequency * 100);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::Hz] = safe_u16(this->values_.frequency * 100);
 
   // Apparent power (scale factor 0)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::VA] = (uint16_t)this->values_.apparent_power;
+  this->registers_[MODEL103_DATA_OFFSET + Model103::VA] = safe_u16(this->values_.apparent_power);
 
   // Reactive power (scale factor 0)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::VAr] = (uint16_t)this->values_.reactive_power;
+  this->registers_[MODEL103_DATA_OFFSET + Model103::VAr] = safe_u16(this->values_.reactive_power);
 
-  // Power factor (scale factor -2, multiply by 100, range -1.00 to 1.00 = -100 to 100)
-  this->registers_[MODEL103_DATA_OFFSET + Model103::PF] = (uint16_t)(int16_t)(this->values_.power_factor * 100);
+  // Power factor (scale factor -2, multiply by 100, signed: clamp to [-100, 100])
+  float pf_scaled = this->values_.power_factor * 100.0f;
+  int16_t pf_reg = std::isfinite(pf_scaled) ? static_cast<int16_t>(std::max(-100.0f, std::min(100.0f, pf_scaled))) : 0;
+  this->registers_[MODEL103_DATA_OFFSET + Model103::PF] = static_cast<uint16_t>(pf_reg);
 
   // Energy (32-bit, scale factor 0)
   this->write_uint32_(MODEL103_DATA_OFFSET + Model103::WH_HI, this->values_.total_energy);
 
   // DC values
-  this->registers_[MODEL103_DATA_OFFSET + Model103::DCA] = (uint16_t)(this->values_.dc_current * 100);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::DCV] = (uint16_t)(this->values_.dc_voltage * 10);
-  this->registers_[MODEL103_DATA_OFFSET + Model103::DCW] = (uint16_t)this->values_.dc_power;
+  this->registers_[MODEL103_DATA_OFFSET + Model103::DCA] = safe_u16(this->values_.dc_current * 100);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::DCV] = safe_u16(this->values_.dc_voltage * 10);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::DCW] = safe_u16(this->values_.dc_power);
 
   // Temperature
-  this->registers_[MODEL103_DATA_OFFSET + Model103::TmpCab] = (uint16_t)this->values_.temperature;
-  this->registers_[MODEL103_DATA_OFFSET + Model103::TmpSnk] = (uint16_t)this->values_.temperature;
+  this->registers_[MODEL103_DATA_OFFSET + Model103::TmpCab] = static_cast<uint16_t>(this->values_.temperature);
+  this->registers_[MODEL103_DATA_OFFSET + Model103::TmpSnk] = static_cast<uint16_t>(this->values_.temperature);
 
   // Operating state
   this->registers_[MODEL103_DATA_OFFSET + Model103::St] = static_cast<uint16_t>(this->values_.state);
@@ -501,20 +519,20 @@ void SunSpecModbusServer::update_registers_() {
   // Model 160 — tracker live data
   // Tracker 0 (PV1) — reuse existing DC source values
   uint16_t t0 = MODEL160_DATA_OFFSET + MODEL160_TRACKER_BASE + 0 * MODEL160_TRACKER_STRIDE;
-  this->registers_[t0 + Model160::T_DCA] = (uint16_t)(this->values_.dc_current * 100);
-  this->registers_[t0 + Model160::T_DCV] = (uint16_t)(this->values_.dc_voltage * 10);
-  this->registers_[t0 + Model160::T_DCW] = (uint16_t)this->values_.dc_power;
+  this->registers_[t0 + Model160::T_DCA] = safe_u16(this->values_.dc_current * 100);
+  this->registers_[t0 + Model160::T_DCV] = safe_u16(this->values_.dc_voltage * 10);
+  this->registers_[t0 + Model160::T_DCW] = safe_u16(this->values_.dc_power);
 
   // Tracker 1 (PV2) — from optional PV2 source sensors
   uint16_t t1 = MODEL160_DATA_OFFSET + MODEL160_TRACKER_BASE + 1 * MODEL160_TRACKER_STRIDE;
   if (this->source_pv2_voltage_ != nullptr && this->source_pv2_voltage_->has_state()) {
-    this->registers_[t1 + Model160::T_DCV] = (uint16_t)(this->source_pv2_voltage_->state * 10);
+    this->registers_[t1 + Model160::T_DCV] = safe_u16(this->source_pv2_voltage_->state * 10);
   }
   if (this->source_pv2_current_ != nullptr && this->source_pv2_current_->has_state()) {
-    this->registers_[t1 + Model160::T_DCA] = (uint16_t)(this->source_pv2_current_->state * 100);
+    this->registers_[t1 + Model160::T_DCA] = safe_u16(this->source_pv2_current_->state * 100);
   }
   if (this->source_pv2_power_ != nullptr && this->source_pv2_power_->has_state()) {
-    this->registers_[t1 + Model160::T_DCW] = (uint16_t)this->source_pv2_power_->state;
+    this->registers_[t1 + Model160::T_DCW] = safe_u16(this->source_pv2_power_->state);
   }
 }
 
