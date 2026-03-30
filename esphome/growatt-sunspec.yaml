@@ -51,6 +51,19 @@ captive_portal:
 
 web_server:
   port: 80
+  sorting_groups:
+    - id: group_ac
+      name: "AC Output"
+      sorting_weight: 1
+    - id: group_dc
+      name: "DC Input (PV)"
+      sorting_weight: 2
+    - id: group_control
+      name: "Control"
+      sorting_weight: 3
+    - id: group_device
+      name: "Device"
+      sorting_weight: 4
 
 # LilyGo T-CAN485 RS485 chip enable pins
 output:
@@ -116,57 +129,99 @@ sensor:
         name: "Growatt Voltage Phase A"
         filters:
           - multiply: 0.57735  # Convert line-to-line (~400V) to phase-to-neutral (~230V)
+        web_server:
+          sorting_group_id: group_ac
+          sorting_weight: 2
       current:
         id: growatt_current_a
         name: "Growatt Current Phase A"
+        web_server:
+          sorting_group_id: group_ac
+          sorting_weight: 5
     phase_b:
       voltage:
         id: growatt_voltage_b
         name: "Growatt Voltage Phase B"
         filters:
           - multiply: 0.57735
+        web_server:
+          sorting_group_id: group_ac
+          sorting_weight: 3
       current:
         id: growatt_current_b
         name: "Growatt Current Phase B"
+        web_server:
+          sorting_group_id: group_ac
+          sorting_weight: 6
     phase_c:
       voltage:
         id: growatt_voltage_c
         name: "Growatt Voltage Phase C"
         filters:
           - multiply: 0.57735
+        web_server:
+          sorting_group_id: group_ac
+          sorting_weight: 4
       current:
         id: growatt_current_c
         name: "Growatt Current Phase C"
+        web_server:
+          sorting_group_id: group_ac
+          sorting_weight: 7
 
     pv1:
       voltage:
         id: growatt_dc_voltage
         name: "Growatt PV1 Voltage"
+        web_server:
+          sorting_group_id: group_dc
+          sorting_weight: 1
       current:
         id: growatt_dc_current
         name: "Growatt PV1 Current"
+        web_server:
+          sorting_group_id: group_dc
+          sorting_weight: 2
       active_power:
         id: growatt_dc_power
         name: "Growatt PV1 Power"
+        web_server:
+          sorting_group_id: group_dc
+          sorting_weight: 3
 
     pv2:
       voltage:
         id: growatt_pv2_voltage
         name: "Growatt PV2 Voltage"
+        web_server:
+          sorting_group_id: group_dc
+          sorting_weight: 4
       current:
         id: growatt_pv2_current
-        name: "Growatt PV2 Current"        
+        name: "Growatt PV2 Current"
+        web_server:
+          sorting_group_id: group_dc
+          sorting_weight: 5
       active_power:
         id: growatt_pv2_power
         name: "Growatt PV2 Power"
+        web_server:
+          sorting_group_id: group_dc
+          sorting_weight: 6
 
     active_power:
       id: growatt_ac_power
       name: "Growatt AC Power"
+      web_server:
+        sorting_group_id: group_ac
+        sorting_weight: 1
 
     frequency:
       id: growatt_frequency
       name: "Growatt Frequency"
+      web_server:
+        sorting_group_id: group_ac
+        sorting_weight: 8
 
     total_energy_production:
       id: growatt_total_energy
@@ -176,19 +231,31 @@ sensor:
       state_class: total_increasing
       filters:
         - multiply: 1000  # Convert kWh to Wh
+      web_server:
+        sorting_group_id: group_ac
+        sorting_weight: 9
 
     inverter_module_temp:
       id: growatt_temperature
       name: "Growatt Temperature"
+      web_server:
+        sorting_group_id: group_ac
+        sorting_weight: 10
 
   # Diagnostics
   - platform: wifi_signal
     name: "${friendly_name} WiFi Signal"
     update_interval: 60s
+    web_server:
+      sorting_group_id: group_device
+      sorting_weight: 2
 
   - platform: uptime
     name: "${friendly_name} Uptime"
     update_interval: 60s
+    web_server:
+      sorting_group_id: group_device
+      sorting_weight: 1
 
 # SunSpec Modbus TCP Server - exposes Growatt data to Victron
 sunspec_modbus_server:
@@ -237,12 +304,30 @@ number:
     entity_category: config
     icon: mdi:gauge
     mode: SLIDER
+    web_server:
+      sorting_group_id: group_control
+      sorting_weight: 1
 
 text_sensor:
   - platform: wifi_info
     ip_address:
       name: "${friendly_name} IP Address"
+      web_server:
+        sorting_group_id: group_device
+        sorting_weight: 3
+  - platform: template
+    name: "${friendly_name} Build Time"
+    lambda: return {__DATE__ " " __TIME__};
+    update_interval: never
+    entity_category: diagnostic
+    icon: mdi:clock-outline
+    web_server:
+      sorting_group_id: group_device
+      sorting_weight: 4
 
 button:
   - platform: restart
     name: "${friendly_name} Restart"
+    web_server:
+      sorting_group_id: group_device
+      sorting_weight: 5
