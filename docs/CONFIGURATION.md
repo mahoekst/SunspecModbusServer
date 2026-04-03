@@ -38,6 +38,30 @@ These wire ESPHome sensor IDs (from `growatt_solar` or `modbus_controller`) into
 | `source_pv2_voltage` | Model 160 PV2 `T_DCV` |
 | `source_pv2_current` | Model 160 PV2 `T_DCA` |
 | `source_pv2_power` | Model 160 PV2 `T_DCW` |
+| `source_inverter_status` | Model 103 `St` (operating state) — see below |
+
+## Operating state logic
+
+The SunSpec Model 103 `St` register is set using the following logic:
+
+**When `source_inverter_status` is wired** (recommended), the Growatt's own status code is used:
+
+| Growatt status | Value | SunSpec state |
+|---|---|---|
+| Normal (producing) | 1 | `MPPT (4)` or `THROTTLED (5)` if power limit active |
+| Waiting (sun present, not yet producing) | 0 | `STANDBY (8)` |
+| Fault | 3 | `FAULT (7)` |
+| No state (inverter off, not responding to Modbus) | — | `SLEEPING (2)` |
+
+**When `source_inverter_status` is not wired**, the state is derived from measurements:
+
+| Condition | SunSpec state |
+|---|---|
+| `ac_power > 0` | `MPPT (4)` or `THROTTLED (5)` |
+| `dc_voltage > 0` but `ac_power == 0` | `STANDBY (8)` |
+| `dc_voltage == 0` | `SLEEPING (2)` |
+
+The `SLEEPING` state covers the case where the inverter is fully powered down at night and not responding to Modbus queries — the sensor has no state, so `has_state()` returns false and `SLEEPING` is reported to Victron.
 
 ## Power limit target
 
