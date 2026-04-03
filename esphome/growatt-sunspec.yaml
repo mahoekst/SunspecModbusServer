@@ -270,6 +270,13 @@ sensor:
         sorting_group_id: group_ac
         sorting_weight: 10
 
+    inverter_status:
+      id: growatt_inverter_status
+      name: "Growatt Inverter Status"
+      web_server:
+        sorting_group_id: group_device
+        sorting_weight: 6
+
   # Diagnostics
   - platform: wifi_signal
     name: "${friendly_name} WiFi Signal"
@@ -314,6 +321,7 @@ sunspec_modbus_server:
   source_pv2_voltage: growatt_pv2_voltage
   source_pv2_current: growatt_pv2_current
   source_pv2_power: growatt_pv2_power
+  source_inverter_status: growatt_inverter_status
   target_power_limit: growatt_power_rate
 
 number:

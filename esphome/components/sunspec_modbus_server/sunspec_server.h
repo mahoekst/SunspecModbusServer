@@ -238,6 +238,7 @@ class SunSpecModbusServer : public Component {
   void set_source_pv2_voltage(sensor::Sensor *sensor) { this->source_pv2_voltage_ = sensor; }
   void set_source_pv2_current(sensor::Sensor *sensor) { this->source_pv2_current_ = sensor; }
   void set_source_pv2_power(sensor::Sensor *sensor) { this->source_pv2_power_ = sensor; }
+  void set_source_inverter_status(sensor::Sensor *sensor) { this->source_inverter_status_ = sensor; }
 
   // Power limit number setter (target for Growatt active power rate)
   void set_power_limit_number(number::Number *number) { this->power_limit_number_ = number; }
@@ -346,6 +347,7 @@ class SunSpecModbusServer : public Component {
   sensor::Sensor *source_pv2_voltage_{nullptr};
   sensor::Sensor *source_pv2_current_{nullptr};
   sensor::Sensor *source_pv2_power_{nullptr};
+  sensor::Sensor *source_inverter_status_{nullptr};
 };
 
 }  // namespace sunspec_modbus_server

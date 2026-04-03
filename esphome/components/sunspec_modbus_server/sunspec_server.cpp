@@ -693,17 +693,30 @@ void SunSpecModbusServer::update_from_sources_() {
     this->values_.temperature = (int16_t)this->source_temperature_->state;
   }
 
-  // Set operating state based on power and active throttle
-  // SLEEPING (2): no DC voltage — inverter in auto-shutdown at night
-  // STANDBY (8): DC voltage present but no AC output — warming up or waiting
-  // MPPT (4) / THROTTLED (5): actively producing AC power
+  // Set operating state
+  // Primary: use inverter_status from Growatt if available (0=waiting, 1=normal, 3=fault)
+  // Fallback: derive from dc_voltage and ac_power when inverter_status is not wired
   bool throttled = (this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLim_Ena] == 1);
-  if (this->values_.ac_power > 0) {
-    this->values_.state = throttled ? InverterState::THROTTLED : InverterState::MPPT;
-  } else if (this->values_.dc_voltage > 0) {
-    this->values_.state = InverterState::STANDBY;
+  if (this->source_inverter_status_ != nullptr && this->source_inverter_status_->has_state()) {
+    int status = (int)this->source_inverter_status_->state;
+    if (status == 1) {  // normal — producing or ready
+      this->values_.state = throttled ? InverterState::THROTTLED : InverterState::MPPT;
+    } else if (status == 0) {  // waiting — sun present but not yet producing
+      this->values_.state = InverterState::STANDBY;
+    } else if (status == 3) {  // fault
+      this->values_.state = InverterState::FAULT;
+    } else {
+      this->values_.state = InverterState::SLEEPING;
+    }
   } else {
-    this->values_.state = InverterState::SLEEPING;
+    // Fallback: no inverter_status sensor wired — derive from measurements
+    if (this->values_.ac_power > 0) {
+      this->values_.state = throttled ? InverterState::THROTTLED : InverterState::MPPT;
+    } else if (this->values_.dc_voltage > 0) {
+      this->values_.state = InverterState::STANDBY;
+    } else {
+      this->values_.state = InverterState::SLEEPING;
+    }
   }
 }
 
