@@ -21,7 +21,27 @@ esphome:
   on_boot:
     priority: -200  # After WiFi and modbus are up
     then:
+      # Read back actual power rate from inverter
       - component.update: growatt_controller
+      # Publish 0 for all measurement sensors so they show 0 instead of NA
+      # when the inverter is off (e.g. after a night reboot). Totals are left
+      # as NA since 0 would be misleading.
+      - lambda: |-
+          id(growatt_ac_power).publish_state(0);
+          id(growatt_current_a).publish_state(0);
+          id(growatt_current_b).publish_state(0);
+          id(growatt_current_c).publish_state(0);
+          id(growatt_voltage_a).publish_state(0);
+          id(growatt_voltage_b).publish_state(0);
+          id(growatt_voltage_c).publish_state(0);
+          id(growatt_frequency).publish_state(0);
+          id(growatt_dc_voltage).publish_state(0);
+          id(growatt_dc_current).publish_state(0);
+          id(growatt_dc_power).publish_state(0);
+          id(growatt_pv2_voltage).publish_state(0);
+          id(growatt_pv2_current).publish_state(0);
+          id(growatt_pv2_power).publish_state(0);
+          id(growatt_temperature).publish_state(0);
 
 esp32:
   board: esp32dev
