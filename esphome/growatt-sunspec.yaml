@@ -52,6 +52,7 @@ logger:
   level: INFO
   logs:
     modbus_controller: ERROR # Prevent [modbus_controller:063] Received modbus data but command queue is empty messages showing all the time
+    modbus: ERROR # Prevent [modbus:064] Stop waiting for response from 1 messages when inverter is off
     #sunspec_modbus_server: DEBUG  #if you want to see the raw SunSpec Modbus TCP communication for debugging
 
 # Enable Home Assistant API
