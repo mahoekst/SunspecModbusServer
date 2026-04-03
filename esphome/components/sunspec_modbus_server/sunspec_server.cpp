@@ -694,7 +694,7 @@ void SunSpecModbusServer::update_from_sources_() {
   }
 
   // Set operating state based on power and active throttle
-  // OFF (1): no DC voltage — inverter truly powered down (night, no panels)
+  // SLEEPING (2): no DC voltage — inverter in auto-shutdown at night
   // STANDBY (8): DC voltage present but no AC output — warming up or waiting
   // MPPT (4) / THROTTLED (5): actively producing AC power
   bool throttled = (this->registers_[MODEL123_DATA_OFFSET + Model123::WMaxLim_Ena] == 1);
@@ -703,7 +703,7 @@ void SunSpecModbusServer::update_from_sources_() {
   } else if (this->values_.dc_voltage > 0) {
     this->values_.state = InverterState::STANDBY;
   } else {
-    this->values_.state = InverterState::OFF;
+    this->values_.state = InverterState::SLEEPING;
   }
 }
 
