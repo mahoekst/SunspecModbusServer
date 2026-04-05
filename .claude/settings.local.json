@@ -27,7 +27,17 @@
       "Bash(esphome upload:*)",
       "Bash(py -m esphome run:*)",
       "Bash(git merge:*)",
-      "Bash(grep -li \"platformio\\\\|pio run\\\\|WiFiManager\\\\|src/\" \"e:/repos/SunspecModbusServer/docs/\"*.md)"
+      "Bash(grep -li \"platformio\\\\|pio run\\\\|WiFiManager\\\\|src/\" \"e:/repos/SunspecModbusServer/docs/\"*.md)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:files.sma.de)",
+      "WebFetch(domain:www.forum-fronius.pl)",
+      "WebFetch(domain:sunspec.org)",
+      "WebFetch(domain:www.victronenergy.com)",
+      "WebFetch(domain:community.victronenergy.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(grep -r \"122\\\\|basicSettings\\\\|WMax\" /e/repos/SunspecModbusServer --include=*.cpp --include=*.h)",
+      "WebFetch(domain:communityarchive.victronenergy.com)"
     ]
   }
 }

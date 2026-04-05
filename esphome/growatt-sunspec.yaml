@@ -21,11 +21,11 @@ esphome:
   on_boot:
     priority: -200  # After WiFi and modbus are up
     then:
-      # Read back actual power rate from inverter
-      - component.update: growatt_controller
       # Publish 0 for all measurement sensors so they show 0 instead of NA
       # when the inverter is off (e.g. after a night reboot). Totals are left
       # as NA since 0 would be misleading.
+      # Power rate is initialised to 100% — register 3 is unreliable when the
+      # inverter is off. Victron will write the correct value when it connects.
       - lambda: |-
           id(growatt_ac_power).publish_state(0);
           id(growatt_current_a).publish_state(0);
@@ -42,6 +42,7 @@ esphome:
           id(growatt_pv2_current).publish_state(0);
           id(growatt_pv2_power).publish_state(0);
           id(growatt_temperature).publish_state(0);
+          id(growatt_power_rate).publish_state(100);
 
 esp32:
   board: esp32dev
